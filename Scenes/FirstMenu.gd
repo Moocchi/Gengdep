@@ -13,8 +13,7 @@ extends Control
 @onready var btn_confirm_yes = $ConfirmationPanel/HBoxContainer/BtnYes
 @onready var btn_confirm_no = $ConfirmationPanel/HBoxContainer/BtnNo
 
-# --- [BARU] REFERENSI OVERLAY PUTIH ---
-# Pastikan kamu sudah membuat node ColorRect bernama "FadeOverlay" di scene
+# --- OVERLAY ---
 @onready var fade_overlay = $FadeOverlay
 
 # --- PATH ---
@@ -22,10 +21,10 @@ var starting_level_path = "res://Scenes/Main.tscn"
 var save_file_path = "user://savegame.save"
 
 func _ready():
-	# 1. [BARU] Jalankan Efek Flash Putih -> Redup
+	# 1. Jalankan animasi Fade In
 	play_fade_in()
 	
-	# 2. Hubungkan Signal
+	# 2. Hubungkan Signal Tombol
 	btn_new_game.pressed.connect(_on_new_game_pressed)
 	btn_load.pressed.connect(_on_load_pressed)
 	btn_credits.pressed.connect(_on_credits_pressed)
@@ -35,57 +34,79 @@ func _ready():
 	if btn_confirm_yes: btn_confirm_yes.pressed.connect(_on_confirm_yes_pressed)
 	if btn_confirm_no: btn_confirm_no.pressed.connect(_on_confirm_no_pressed)
 	
-	# Sembunyikan panel di awal
+	# 3. Setup Awal Panel
 	credits_panel.visible = false
 	confirm_panel.visible = false
 	
-	# Fokus ke tombol setelah efek fade selesai (opsional, biar mulus)
-	await get_tree().create_timer(0.5).timeout
-	btn_new_game.grab_focus()
+	# 4. Fokus Otomatis ke New Game (Wajib buat Stik)
+	# Kita pakai call_deferred biar aman, menunggu frame siap
+	btn_new_game.call_deferred("grab_focus")
 
-# --- [BARU] FUNGSI ANIMASI FADE IN ---
+# --- [FIXED] AUTO FOCUS GUARD ---
+# Ini menjaga agar fokus tidak hilang kalau user klik sembarang tempat pakai mouse
+func _process(_delta):
+	var focus_owner = get_viewport().gui_get_focus_owner()
+	
+	# Kalau tidak ada tombol yang difokus (hilang fokus), paksa balik ke New Game
+	if focus_owner == null:
+		if confirm_panel.visible:
+			btn_confirm_no.grab_focus()
+		elif credits_panel.visible:
+			btn_close_credits.grab_focus()
+		else:
+			btn_new_game.grab_focus()
+
+# --- [FIXED] INPUT STIK MANUAL (ANTI ERROR) ---
+func _input(event):
+	if not is_inside_tree():
+		return
+
+	if event.is_action_pressed("confirm_button") or event.is_action_pressed("ui_accept"):
+		var vp := get_viewport()
+		if vp == null:
+			return
+
+		var focused = vp.gui_get_focus_owner()
+		if focused is BaseButton:
+			focused.pressed.emit()
+			vp.call_deferred("set_input_as_handled")
+
+
+# --- FUNGSI LAINNYA ---
+
 func play_fade_in():
-	# Pastikan di awal dia putih solid (alpha 1.0)
-	fade_overlay.modulate.a = 1.0
-	fade_overlay.visible = true
-	
-	# Buat tween untuk mengubah alpha dari 1.0 ke 0.0
-	var tween = create_tween()
-	# Durasi 0.8 detik, pakai transisi SINE biar halus
-	tween.tween_property(fade_overlay, "modulate:a", 0.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
-	
-	# Setelah selesai, sembunyikan node-nya (opsional, tapi praktik bagus)
-	await tween.finished
-	fade_overlay.visible = false
+	if fade_overlay:
+		fade_overlay.modulate.a = 1.0
+		fade_overlay.visible = true
+		var tween = create_tween()
+		tween.tween_property(fade_overlay, "modulate:a", 0.0, 0.8).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		await tween.finished
+		fade_overlay.visible = false
 
-# --- LOGIKA NEW GAME ---
 func _on_new_game_pressed():
 	if FileAccess.file_exists(save_file_path):
 		confirm_panel.visible = true
-		btn_confirm_no.grab_focus()
+		btn_confirm_no.grab_focus() # Pindah fokus stik
 	else:
 		start_fresh_game()
 
-# --- LOGIKA KONFIRMASI ---
 func _on_confirm_yes_pressed():
 	start_fresh_game()
 
 func _on_confirm_no_pressed():
 	confirm_panel.visible = false
-	btn_new_game.grab_focus()
+	btn_new_game.grab_focus() # Balikin fokus stik
 
-# --- FUNGSI MULAI ---
 func start_fresh_game():
 	print("Membuat Save Baru...")
 	reset_global_data()
-	get_tree().change_scene_to_file(starting_level_path)
+	# Pindah scene pakai Loading Screen
+	Global.change_scene_with_loading(starting_level_path)
 
-# --- FUNGSI LAINNYA ---
 func _on_load_pressed():
 	if FileAccess.file_exists(save_file_path):
 		print("Loading Game...")
-		# Logika load data JSON nanti di sini
-		get_tree().change_scene_to_file(starting_level_path)
+		Global.change_scene_with_loading(starting_level_path)
 	else:
 		print("Save file tidak ditemukan!")
 

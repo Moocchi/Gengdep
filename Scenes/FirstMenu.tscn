@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bha8307nrgw3u"]
+[gd_scene load_steps=3 format=3 uid="uid://bha8307nrgw3u"]
 
 [ext_resource type="Script" uid="uid://cok6leku2tnci" path="res://Scenes/FirstMenu.gd" id="1_menu_script"]
+[ext_resource type="FontFile" uid="uid://dxg0puyk07c1q" path="res://Fonts/Avenixel-Regular.ttf" id="2_3kv8b"]
 
 [node name="FirstMenu" type="Control"]
 layout_mode = 3
@@ -30,6 +31,7 @@ offset_top = 60.0
 offset_right = 250.0
 offset_bottom = 130.0
 grow_horizontal = 2
+theme_override_fonts/font = ExtResource("2_3kv8b")
 theme_override_font_sizes/font_size = 48
 text = "RAJEG WARRIOR ADVENTURE"
 horizontal_alignment = 1
@@ -53,24 +55,28 @@ theme_override_constants/separation = 20
 [node name="BtnNewGame" type="Button" parent="MenuContainer"]
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
+theme_override_fonts/font = ExtResource("2_3kv8b")
 theme_override_font_sizes/font_size = 20
 text = "NEW GAME"
 
 [node name="BtnLoad" type="Button" parent="MenuContainer"]
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
+theme_override_fonts/font = ExtResource("2_3kv8b")
 theme_override_font_sizes/font_size = 20
 text = "CONTINUE"
 
 [node name="BtnCredits" type="Button" parent="MenuContainer"]
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
+theme_override_fonts/font = ExtResource("2_3kv8b")
 theme_override_font_sizes/font_size = 20
 text = "CREDITS"
 
 [node name="BtnExit" type="Button" parent="MenuContainer"]
 custom_minimum_size = Vector2(0, 45)
 layout_mode = 2
+theme_override_fonts/font = ExtResource("2_3kv8b")
 theme_override_font_sizes/font_size = 20
 text = "EXIT"
 

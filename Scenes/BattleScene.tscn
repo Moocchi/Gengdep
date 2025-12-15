@@ -58,6 +58,8 @@ grow_horizontal = 2
 
 [node name="PlayerInfo" type="Label" parent="TopBar"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("1_12f34")
+theme_override_font_sizes/font_size = 23
 text = "Player HP: 100"
 
 [node name="VSeparator" type="VSeparator" parent="TopBar"]
@@ -67,6 +69,8 @@ size_flags_horizontal = 3
 
 [node name="EnemyInfo" type="Label" parent="TopBar"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("1_12f34")
+theme_override_font_sizes/font_size = 23
 text = "Enemy HP: 100"
 
 [node name="BattleArea" type="Control" parent="."]
@@ -138,6 +142,8 @@ layout_mode = 2
 
 [node name="QuestionLabel" type="Label" parent="ActionPanel/QuestionBox"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("1_12f34")
+theme_override_font_sizes/font_size = 23
 text = "Pertanyaan akan muncul di sini..."
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -153,24 +159,32 @@ columns = 2
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("1_12f34")
+theme_override_font_sizes/font_size = 23
 text = "Jawaban 1"
 
 [node name="Button2" type="Button" parent="ActionPanel/ButtonsGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("1_12f34")
+theme_override_font_sizes/font_size = 23
 text = "Jawaban 2"
 
 [node name="Button3" type="Button" parent="ActionPanel/ButtonsGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("1_12f34")
+theme_override_font_sizes/font_size = 23
 text = "Jawaban 3"
 
 [node name="Button4" type="Button" parent="ActionPanel/ButtonsGrid"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_fonts/font = ExtResource("1_12f34")
+theme_override_font_sizes/font_size = 23
 text = "Jawaban 4"
 
 [node name="UltCircle" type="TextureProgressBar" parent="."]
@@ -195,4 +209,5 @@ offset_left = 17.0
 offset_top = 14.0
 offset_right = 54.0
 offset_bottom = 45.0
+theme_override_fonts/font = ExtResource("1_12f34")
 text = "exit"

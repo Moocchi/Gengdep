@@ -1,0 +1,126 @@
+[gd_scene load_steps=13 format=3 uid="uid://b6eahite7w0b4"]
+
+[ext_resource type="Script" uid="uid://u2akkaydy4g6" path="res://Scenes/LoadingScreen.gd" id="1_m6rkq"]
+[ext_resource type="FontFile" uid="uid://dxg0puyk07c1q" path="res://Fonts/Avenixel-Regular.ttf" id="2_qjj4j"]
+[ext_resource type="Texture2D" uid="uid://bd1lgr5tsd74c" path="res://Player/Run.png" id="3_dq85b"]
+[ext_resource type="Script" uid="uid://o6dbg7e3toun" path="res://Fonts/RichTextStiffWave.gd" id="4_qjj4j"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ffghy"]
+atlas = ExtResource("3_dq85b")
+region = Rect2(0, 0, 22, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_68uam"]
+atlas = ExtResource("3_dq85b")
+region = Rect2(22, 0, 22, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_davxm"]
+atlas = ExtResource("3_dq85b")
+region = Rect2(44, 0, 22, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_634pj"]
+atlas = ExtResource("3_dq85b")
+region = Rect2(66, 0, 22, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_am871"]
+atlas = ExtResource("3_dq85b")
+region = Rect2(88, 0, 22, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6p6t7"]
+atlas = ExtResource("3_dq85b")
+region = Rect2(110, 0, 22, 24)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_jepyk"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ffghy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_68uam")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_davxm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_634pj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_am871")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6p6t7")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 10.0
+}]
+
+[sub_resource type="RichTextEffect" id="RichTextEffect_dq85b"]
+script = ExtResource("4_qjj4j")
+metadata/_custom_type_script = "uid://o6dbg7e3toun"
+
+[node name="LoadingScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_m6rkq")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07683582, 0.07683582, 0.07683582, 1)
+
+[node name="BottomRightContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -313.0
+offset_top = -66.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/margin_right = 13
+theme_override_constants/margin_bottom = 16
+
+[node name="HBoxContainer" type="HBoxContainer" parent="BottomRightContainer"]
+layout_mode = 2
+
+[node name="PlayerWalkAnim" type="AnimatedSprite2D" parent="BottomRightContainer/HBoxContainer"]
+unique_name_in_owner = true
+position = Vector2(257, 1)
+scale = Vector2(2.5227258, 2.5227258)
+sprite_frames = SubResource("SpriteFrames_jepyk")
+animation = &"walk"
+frame_progress = 0.9093987
+
+[node name="LoadingRichText" type="RichTextLabel" parent="BottomRightContainer/HBoxContainer"]
+unique_name_in_owner = true
+clip_contents = false
+custom_minimum_size = Vector2(300, 50)
+layout_direction = 3
+layout_mode = 2
+theme_override_fonts/normal_font = ExtResource("2_qjj4j")
+theme_override_font_sizes/normal_font_size = 34
+bbcode_enabled = true
+text = "NOW LOADING..."
+scroll_active = false
+custom_effects = [SubResource("RichTextEffect_dq85b")]
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 0
+offset_left = 135.0
+offset_top = 177.0
+offset_right = 463.0
+offset_bottom = 200.0
+theme_override_fonts/font = ExtResource("2_qjj4j")
+theme_override_font_sizes/font_size = 23
+text = "for() selalu dimulai dari 0 index ya gusy"
