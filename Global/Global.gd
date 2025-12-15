@@ -1,5 +1,6 @@
 extends Node
 
+#PLAYER
 var player_max_hp = 100
 var player_current_hp = 100 # Ini yang akan naik turun saat battle
 var player_current_mana = 0  # <--- [BARU] Simpan Mana di sini
@@ -14,6 +15,10 @@ var defeated_enemies = []
 var just_defeated_id = ""     
 var current_enemy_id = ""
 var just_fled_from_id = ""
+
+# BATTLE INITIATION
+# Variabel untuk menyimpan screenshot map
+var battle_background_texture: Texture2D = null
 
 var enemy_database = {
 	"bee": {
@@ -42,10 +47,9 @@ var enemy_database = {
 	}
 }
 
-# --- FUNGSI LOAD FILE JSON (TAMBAHKAN DI BAWAH) ---
-# --- FUNGSI LOAD FILE JSON (UPDATE DIKIT) ---
+
+#FUNGSI LOAD FILE JSON 
 func load_question_file(file_path: String) -> Array:
-	# [FIX] Kita hapus tambahan "res://Data/" karena sekarang inputnya sudah Full Path
 	
 	if not FileAccess.file_exists(file_path):
 		print("ERROR: File soal tidak ditemukan di path: " + file_path)

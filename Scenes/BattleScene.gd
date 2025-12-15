@@ -33,7 +33,7 @@ var current_question_data = {}
 # --- REFERENSI SCENE ---
 var floating_text_scene = preload("res://Scenes/FloatingText.tscn")
 
-# --- REFERENSI NODE ---
+# --- REFERENSI NODE (STRUKTUR ORIGINAL) ---
 @onready var timer_label = $TimerUI/TimerLabel
 @onready var timer_bar = $TimerUI/TimerBar
 @onready var question_label = $ActionPanel/QuestionBox/QuestionLabel
@@ -46,11 +46,14 @@ var floating_text_scene = preload("res://Scenes/FloatingText.tscn")
 @onready var ult_button = $UltCircle/UltButton 
 @onready var exit_button = $ExitButton
 
-# ANIMASI
+# ANIMASI & WORLD
 @onready var player_anim = $BattleArea/PlayerAnim
 @onready var enemy_anim = $BattleArea/EnemyAnim
+@onready var camera = $Camera2D 
+# Pastikan nama node background benar (sesuai scene tree kamu)
+@onready var background = $Background 
 
-# TOMBOL
+# TOMBOL JAWABAN
 @onready var btn1 = $ActionPanel/ButtonsGrid/Button1
 @onready var btn2 = $ActionPanel/ButtonsGrid/Button2
 @onready var btn3 = $ActionPanel/ButtonsGrid/Button3
@@ -80,9 +83,14 @@ func _ready():
 	setup_player_anim()
 	update_mana_ui()
 	
+	# Load Screenshot Background (Cek null biar aman)
+	if Global.battle_background_texture != null:
+		if has_node("Background"):
+			$Background.texture = Global.battle_background_texture
+	
 	await get_tree().process_frame
 	original_player_pos = player_anim.position
-	original_enemy_pos = enemy_anim.position 
+	original_enemy_pos = enemy_anim.position
 	
 	if question_bank.size() > 0:
 		update_ui()
@@ -110,7 +118,7 @@ func _process(delta):
 			timer_label.modulate = Color(1, 1, 1)
 		
 		if current_time <= 0:
-			handle_timeout() 
+			handle_timeout()
 
 func handle_gamepad_input():
 	if is_confirming_flee:
@@ -160,20 +168,15 @@ func increase_mana(amount):
 	Global.player_current_mana = current_mana
 	update_mana_ui()
 
-# --- FUNGSI FLOATING TEXT (AUTO HEIGHT DARI COLLISION) ---
+# --- FUNGSI FLOATING TEXT ---
 func spawn_floating_text(target_node, value, color):
 	if floating_text_scene:
 		var text_instance = floating_text_scene.instantiate()
 		add_child(text_instance) 
+		text_instance.z_index = 100 
 		
-		# Default offset
 		var offset_y = -30.0 
-		
-		# Coba cari node CollisionShape2D di dalam target
-		# Kita asumsi strukturnya: Musuh -> CollisionShape2D
 		var collision_node = target_node.get_node_or_null("CollisionShape2D")
-		
-		# Jika tidak ketemu langsung, coba cari di children (karena nama bisa beda)
 		if collision_node == null:
 			for child in target_node.get_children():
 				if child is CollisionShape2D:
@@ -183,39 +186,24 @@ func spawn_floating_text(target_node, value, color):
 		if collision_node and collision_node.shape:
 			var shape = collision_node.shape
 			var shape_height = 0.0
+			if shape is CircleShape2D: shape_height = shape.radius
+			elif shape is RectangleShape2D: shape_height = shape.size.y / 2.0
+			elif shape is CapsuleShape2D: shape_height = shape.height / 2.0
+			offset_y = -(shape_height * target_node.scale.y) - 30.0
 			
-			# Deteksi tipe shape untuk ambil tinggi yang benar
-			if shape is CircleShape2D:
-				shape_height = shape.radius
-			elif shape is RectangleShape2D:
-				shape_height = shape.size.y / 2.0
-			elif shape is CapsuleShape2D:
-				shape_height = shape.height / 2.0
-			
-			# Tambahkan scaling musuh (penting jika musuh di-scale up/down)
-			var total_height = shape_height * target_node.scale.y
-			
-			# Set offset di atas kepala (+sedikit jarak extra)
-			offset_y = -total_height - 20.0
-			
-		# Posisi Random X
 		var random_x = randf_range(-20, 20)
-		
-		# Terapkan posisi
 		text_instance.global_position = target_node.global_position + Vector2(random_x, offset_y)
-		
 		text_instance.setup(str(value), color)
 
-# --- [BARU] FUNGSI HELPER UNTUK TUNGGU FRAME ANIMASI ---
-# Fungsi ini menahan kode sampai animasi mencapai frame tertentu
+# --- FUNGSI HELPER ANIMASI ---
 func wait_for_frame(anim_sprite, target_frame):
+	var safety_timer = 0.0
 	while anim_sprite.frame < target_frame:
 		await get_tree().process_frame
-		# Safety check: Jika animasi berhenti atau ganti, break loop
-		if not anim_sprite.is_playing(): 
+		safety_timer += get_process_delta_time()
+		if not anim_sprite.is_playing() or safety_timer > 2.0: 
 			break
 
-# --- FUNGSI EFEK VISUAL ---
 func play_enemy_hit_effect():
 	if enemy_anim.sprite_frames.has_animation("hit"):
 		enemy_anim.frame = 0 
@@ -243,13 +231,15 @@ func play_player_hit_effect():
 
 func shake_screen(duration, intensity):
 	var tween = get_tree().create_tween()
-	var original_pos = position
+	var base_pos = position 
+	
 	for i in range(10):
 		var offset = Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
-		tween.tween_property(self, "position", original_pos + offset, duration/10)
-	tween.tween_property(self, "position", original_pos, 0.0)
+		tween.tween_property(self, "position", base_pos + offset, duration/10)
+			
+	tween.tween_property(self, "position", base_pos, 0.0)
 
-# --- [REVISI] ULTIMATE COMBO DENGAN SYNC FRAME & 10 DAMAGE NUMBERS ---
+# --- ULTIMATE COMBO (TANPA CINEMATIC UI/KAMERA) ---
 func perform_ultimate():
 	if current_mana < max_mana or is_waiting_next_turn or not battle_active:
 		return
@@ -264,75 +254,67 @@ func perform_ultimate():
 	
 	question_label.text = "⚡ ULTIMATE COMBO! ⚡"
 	
+	# 1. EMOTE
+	if player_anim.sprite_frames.has_animation("emote"):
+		player_anim.play("emote")
+		await player_anim.animation_finished
+	
+	# 2. ATTACK
 	await move_player_to_enemy()
 	player_anim.modulate = Color(2, 0.5, 0.5) 
 	
 	var slash_count = 5
 	var initial_speed = 1.0
 	
-	# FASE SLASH 5X (Attack 2 - Hit di Frame 2 & 5)
 	for i in range(slash_count):
 		if player_anim.sprite_frames.has_animation("attack_2"):
 			player_anim.frame = 0 
 			player_anim.play("attack_2")
 			player_anim.speed_scale = initial_speed + (i * 0.4)
 			
-			# Hitungan Damage per slash (dibagi 2 hit)
-			var total_slash_damage = randi_range(10, 15)
-			var dmg_1 = int(total_slash_damage / 2)
-			var dmg_2 = total_slash_damage - dmg_1
-			
-			# --- HIT PERTAMA (Frame 2) ---
 			await wait_for_frame(player_anim, 2)
 			shake_screen(0.1, 1.0 + i)
 			play_enemy_hit_effect()
-			enemy_hp -= dmg_1
-			spawn_floating_text(enemy_anim, dmg_1, Color(1, 1, 0)) # Kuning
+			var mini_damage = randi_range(5, 8)
+			enemy_hp -= mini_damage
+			spawn_floating_text(enemy_anim, mini_damage, Color(1, 1, 0))
 			
-			# --- HIT KEDUA (Frame 5) ---
-			await wait_for_frame(player_anim, 5)
-			shake_screen(0.1, 2.0 + i)
-			play_enemy_hit_effect()
-			enemy_hp -= dmg_2
-			spawn_floating_text(enemy_anim, dmg_2, Color(1, 1, 0)) # Kuning
-			
-			update_ui()
-			
-			# Tunggu sisa animasi (khusus slash terakhir play full, yg lain cut)
 			if i < slash_count - 1:
-				await get_tree().process_frame # Jeda dikit
+				await get_tree().process_frame
 			else:
 				await player_anim.animation_finished
 		else:
 			await get_tree().create_timer(0.2).timeout
 	
-	# FASE LAST BLOW (Attack 3 - Hit di Frame 2)
 	player_anim.speed_scale = 1.0 
 	
+	# 3. Last Blow (Slow Mo)
 	if player_anim.sprite_frames.has_animation("attack_3"):
 		player_anim.frame = 0
 		player_anim.play("attack_3")
-		
-		# --- FINAL HIT (Frame 2) ---
 		await wait_for_frame(player_anim, 2)
 	else:
 		player_anim.play("attack_1")
 	
+	Engine.time_scale = 0.5 
 	shake_screen(0.6, 8.0)
 	play_enemy_hit_effect() 
 	
 	var final_damage = randi_range(50, 70)
 	enemy_hp -= final_damage
 	if enemy_hp < 0: enemy_hp = 0
+	spawn_floating_text(enemy_anim, final_damage, Color(1, 0, 0)) 
 	
-	spawn_floating_text(enemy_anim, final_damage, Color(1, 0, 0)) # Merah Besar
-	question_label.text = "💥 FINAL BLOW!!\nTotal Damage Dahsyat!" 
-	update_ui()
+	await get_tree().create_timer(0.2).timeout 
+	Engine.time_scale = 1.0
 	
 	await player_anim.animation_finished
 	player_anim.modulate = Color(1, 1, 1)
 	
 	await return_player_to_start()
+	
+	question_label.text = "💥 FINAL BLOW!!\nTotal Damage Dahsyat!" 
+	update_ui()
 	
 	if enemy_hp > 0:
 		enemy_anim.play(enemy_idle_anim_name)
@@ -344,7 +326,7 @@ func perform_ultimate():
 	await get_tree().create_timer(1.0).timeout
 	enemy_turn()
 
-# --- [REVISI] STANDARD ATTACK DENGAN FRAME SYNC ---
+# --- STANDARD ATTACK ---
 func check_answer(btn_index):
 	if is_waiting_next_turn or not battle_active: return
 	
@@ -361,25 +343,21 @@ func check_answer(btn_index):
 		await move_player_to_enemy()
 		
 		var base_damage = randi_range(1, 10)
-		var bonus_damage = 0 # Bisa ditambah logika bonus waktu
+		var bonus_damage = 0
 		var total_damage = base_damage + bonus_damage
 		
-		# PILIH ANIMASI & SYNC DAMAGE
 		if current_time > 6.0 and player_anim.sprite_frames.has_animation("attack_2"):
-			# --- ATTACK 2 (Double Hit) ---
 			player_anim.frame = 0
 			player_anim.play("attack_2")
 			
 			var dmg_1 = int(total_damage / 2)
 			var dmg_2 = total_damage - dmg_1
 			
-			# Hit 1 (Frame 2)
 			await wait_for_frame(player_anim, 2)
 			enemy_hp -= dmg_1
 			spawn_floating_text(enemy_anim, dmg_1, Color(1, 1, 1))
 			play_enemy_hit_effect()
 			
-			# Hit 2 (Frame 5)
 			await wait_for_frame(player_anim, 5)
 			enemy_hp -= dmg_2
 			spawn_floating_text(enemy_anim, dmg_2, Color(1, 1, 1))
@@ -387,41 +365,30 @@ func check_answer(btn_index):
 			
 			await player_anim.animation_finished
 			
-			# Play recover animation if exists
 			if player_anim.sprite_frames.has_animation("attack_2_recover"):
 				player_anim.play("attack_2_recover")
 				await player_anim.animation_finished
 
 		elif current_time > 3.0 and player_anim.sprite_frames.has_animation("attack_1"):
-			# --- ATTACK 1 (Hit Frame 5) ---
 			player_anim.frame = 0
 			player_anim.play("attack_1")
-			
 			await wait_for_frame(player_anim, 5)
-			
 			enemy_hp -= total_damage
 			spawn_floating_text(enemy_anim, total_damage, Color(1, 1, 1))
 			play_enemy_hit_effect()
-			
 			await player_anim.animation_finished
 
 		else:
-			# --- ATTACK 3 (Hit Frame 2) - Fallback ---
 			if player_anim.sprite_frames.has_animation("attack_3"):
 				player_anim.frame = 0
 				player_anim.play("attack_3")
-				
 				await wait_for_frame(player_anim, 2)
-				
 				enemy_hp -= total_damage
-				# Warna Merah kalau Damage Besar (misal attack 3 dianggap kuat)
 				var color = Color(1, 0, 0) if total_damage > 10 else Color(1, 1, 1)
 				spawn_floating_text(enemy_anim, total_damage, color)
 				play_enemy_hit_effect()
-				
 				await player_anim.animation_finished
 			else:
-				# Fallback total jika tidak ada animasi
 				await get_tree().create_timer(0.5).timeout
 				enemy_hp -= total_damage
 				spawn_floating_text(enemy_anim, total_damage, Color(1, 1, 1))
@@ -447,9 +414,7 @@ func check_answer(btn_index):
 	await get_tree().create_timer(0.8).timeout
 	enemy_turn()
 
-# ... (Sisa fungsi ke bawah sama seperti sebelumnya) ...
-# ... (perform_enemy_attack_animation, enemy_turn, dll) ...
-
+# --- GERAKAN MUSUH ---
 func perform_enemy_attack_animation():
 	enemy_anim.z_index = 1  
 	player_anim.z_index = 0 
@@ -505,6 +470,7 @@ func enemy_turn():
 		await get_tree().create_timer(2.0).timeout
 		start_new_turn()
 
+# --- STANDAR UTILS & NAVIGASI (YANG SEBELUMNYA HILANG) ---
 func setup_player_anim():
 	if player_anim.sprite_frames == null: return
 	if player_anim.sprite_frames.has_animation("idle"): player_anim.play("idle")
@@ -638,6 +604,9 @@ func set_buttons_enabled(enabled: bool):
 	if enabled: highlight_button()
 
 func win_battle():
+	# Reset safety
+	Engine.time_scale = 1.0
+	
 	battle_active = false
 	var enemy_name = enemy_data.get("name", "Musuh")
 	question_label.text = "🏆 MENANG!\n%s berhasil dikalahkan." % enemy_name
@@ -658,6 +627,7 @@ func win_battle():
 	quit_battle()
 
 func game_over(reason):
+	Engine.time_scale = 1.0
 	battle_active = false
 	question_label.text = reason
 

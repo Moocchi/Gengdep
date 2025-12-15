@@ -145,11 +145,13 @@ func _on_wander_time_timeout():
 	if player == null: _pick_new_wander_target()
 
 func _on_hitbox_body_entered(body):
-	# [PENTING] Cegah battle jika sedang stun
+	# [PENTING] Jangan trigger battle kalau lagi stun
 	if is_stunned: return
 
 	if body.name == "Player":
 		print("Battle Start! Melawan: " + enemy_id)
+		
+		# 1. Simpan Data Posisi
 		Global.last_player_position = body.global_position
 		Global.last_enemy_position = global_position
 		
@@ -159,4 +161,22 @@ func _on_hitbox_body_entered(body):
 		Global.current_enemy_id = enemy_id
 		Global.active_enemy_type = enemy_type
 		
+		# --- [BARU] LOGIKA SCREENSHOT BACKGROUND ---
+		# 1. Sembunyikan Musuh & Player biar gak ikut kefoto
+		visible = false 
+		body.visible = false
+		
+		# 2. Tunggu 1 frame agar engine merender ulang layar yang kosong
+		await get_tree().process_frame
+		await get_tree().process_frame # Dua kali biar aman
+		
+		# 3. Ambil Screenshot Layar
+		var viewport_img = get_viewport().get_texture().get_image()
+		var screenshot = ImageTexture.create_from_image(viewport_img)
+		
+		# 4. Simpan ke Global
+		Global.battle_background_texture = screenshot
+		# -------------------------------------------
+		
+		# Pindah Scene
 		get_tree().change_scene_to_file("res://Scenes/BattleScene.tscn")

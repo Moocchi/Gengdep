@@ -1,5 +1,6 @@
-[gd_scene load_steps=7 format=3 uid="uid://c74av0vossp0f"]
+[gd_scene load_steps=8 format=3 uid="uid://c74av0vossp0f"]
 
+[ext_resource type="Script" uid="uid://d2pjimbt6flg8" path="res://Intro/intro.gd" id="1_b4ujl"]
 [ext_resource type="Texture2D" uid="uid://duqaycptf41qk" path="res://Intro/splash.png" id="1_fvpbx"]
 [ext_resource type="Texture2D" uid="uid://b2jatsb73a1r0" path="res://Intro/Esaunggul.png" id="1_sptw6"]
 [ext_resource type="FontFile" uid="uid://dxg0puyk07c1q" path="res://Fonts/Avenixel-Regular.ttf" id="3_b4ujl"]
@@ -168,6 +169,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_b4ujl")
 metadata/_edit_vertical_guides_ = [576.0]
 metadata/_edit_horizontal_guides_ = [324.0]
 
@@ -261,3 +263,5 @@ libraries = {
 &"": SubResource("AnimationLibrary_s8pxw")
 }
 autoplay = "intro"
+
+[connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]
