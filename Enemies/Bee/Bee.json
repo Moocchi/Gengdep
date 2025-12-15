@@ -1,0 +1,14 @@
+[
+	{ "q": "Fungsi untuk menampilkan teks ke layar?", "a": ["input()", "print()", "show()", "echo()"], "c": 1 },
+	{ "q": "Fungsi untuk menerima input dari pengguna?", "a": ["scan()", "input()", "get()", "read()"], "c": 1 },
+	{ "q": "Simbol komentar satu baris di Python?", "a": ["//", "#", "/*", "--"], "c": 1 },
+	{ "q": "Tipe data untuk angka bulat?", "a": ["str", "float", "int", "bool"], "c": 2 },
+	{ "q": "Tipe data untuk teks adalah?", "a": ["text", "string", "char", "str"], "c": 3 },
+	{ "q": "Nilai True dan False termasuk tipe?", "a": ["String", "Integer", "Boolean", "Float"], "c": 2 },
+	{ "q": "Cara membuat variabel yang benar?", "a": ["var x = 5", "int x = 5", "x = 5", "$x = 5"], "c": 2 },
+	{ "q": "Operator untuk penjumlahan?", "a": ["-", "*", "+", "/"], "c": 2 },
+	{ "q": "Hasil dari 10 + 5 adalah?", "a": ["15", "105", "10", "5"], "c": 0 },
+	{ "q": "Tanda sama dengan (=) digunakan untuk?", "a": ["Perbandingan", "Penjumlahan", "Pengurangan", "Pemberian nilai"], "c": 3 },
+	{ "q": "Fungsi untuk mengetahui tipe data?", "a": ["typeof()", "type()", "datatype()", "check()"], "c": 1 },
+	{ "q": "Hasil dari print(3 * 4) adalah?", "a": ["7", "12", "34", "Error"], "c": 1 }
+]

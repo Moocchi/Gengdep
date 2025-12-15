@@ -1,0 +1,14 @@
+[
+	{ "q": "Keyword untuk percabangan kondisi?", "a": ["for", "if", "while", "def"], "c": 1 },
+	{ "q": "Keyword untuk kondisi selain if?", "a": ["else", "other", "elif", "switch"], "c": 0 },
+	{ "q": "elif digunakan untuk?", "a": ["Perulangan", "Fungsi", "Kondisi tambahan", "Komentar"], "c": 2 },
+	{ "q": "Simbol perbandingan sama dengan?", "a": ["=", "==", "!=", "<>"], "c": 1 },
+	{ "q": "Simbol lebih besar dari?", "a": [">", "<", ">=", "<="], "c": 0 },
+	{ "q": "Keyword untuk perulangan di Python?", "a": ["repeat", "loop", "for", "iterate"], "c": 2 },
+	{ "q": "for i in range(3) akan berjalan berapa kali?", "a": ["1", "2", "3", "4"], "c": 2 },
+	{ "q": "Nilai awal range(5) dimulai dari?", "a": ["0", "1", "5", "-1"], "c": 0 },
+	{ "q": "Kode if harus diakhiri dengan?", "a": [";", "{}", ":", "."], "c": 2 },
+	{ "q": "Indentasi di Python digunakan untuk?", "a": ["Komentar", "Blok kode", "Variabel", "Output"], "c": 1 },
+	{ "q": "Hasil dari for i in range(1): print(i)?", "a": ["0", "1", "Error", "Tidak ada output"], "c": 0 },
+	{ "q": "else akan dijalankan jika?", "a": ["Kondisi true", "Kondisi false", "Selalu", "Terjadi error"], "c": 1 }
+]

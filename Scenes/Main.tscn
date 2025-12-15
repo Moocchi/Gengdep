@@ -1,0 +1,48 @@
+[gd_scene load_steps=5 format=3 uid="uid://7ftapnma3g7u"]
+
+[ext_resource type="PackedScene" uid="uid://ogxdlhs5wkmx" path="res://Scenes/map1.tscn" id="1_erwvk"]
+[ext_resource type="Script" uid="uid://sn4rdgl8accm" path="res://Scripts/level.gd" id="1_rgh2o"]
+[ext_resource type="PackedScene" uid="uid://chnecnydq2028" path="res://Player/player.tscn" id="2_2w5on"]
+[ext_resource type="PackedScene" uid="uid://c40uwd63eb2sd" path="res://Scenes/door.tscn" id="3_kln2b"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_rgh2o")
+
+[node name="map1" parent="." instance=ExtResource("1_erwvk")]
+
+[node name="Player" parent="." instance=ExtResource("2_2w5on")]
+texture_filter = 1
+position = Vector2(568, 216)
+scale = Vector2(0.8, 0.8)
+
+[node name="RemoteTransform2D" type="RemoteTransform2D" parent="Player"]
+position = Vector2(15.833333, 17.499987)
+remote_path = NodePath("../Camera2D")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+position = Vector2(15.833374, 17.49997)
+scale = Vector2(0.99999994, 0.99999994)
+zoom = Vector2(3.635, 3.635)
+limit_left = 1
+limit_top = -1
+limit_right = 880
+limit_bottom = 529
+position_smoothing_speed = 10.0
+
+[node name="Doors" type="Node2D" parent="."]
+
+[node name="door_main" parent="Doors" instance=ExtResource("3_kln2b")]
+position = Vector2(880, 64)
+scale = Vector2(0.99999994, 0.99999994)
+destination_level_tag = "map2"
+destination_door_tag = "map2"
+spawn_direction = " left"
+
+[node name="CollisionShape2D" parent="Doors/door_main" index="0"]
+position = Vector2(3, 0)
+scale = Vector2(0.99999976, 0.99999976)
+
+[node name="Spawn" parent="Doors/door_main" index="1"]
+position = Vector2(-24, 0)
+
+[editable path="Doors/door_main"]

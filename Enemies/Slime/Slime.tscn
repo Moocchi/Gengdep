@@ -1,0 +1,53 @@
+[gd_scene load_steps=6 format=3 uid="uid://bha22gn50fm50"]
+
+[ext_resource type="Script" uid="uid://c83t2dn6oh27k" path="res://Enemies/Slime/slime.gd" id="1_0ae7n"]
+[ext_resource type="SpriteFrames" uid="uid://bme6u114kkmkq" path="res://Enemies/Slime/Slime.tres" id="1_hsbk2"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_0ae7n"]
+radius = 6.6666665
+height = 21.333334
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_0ae7n"]
+radius = 94.23611
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_wyclx"]
+radius = 8.0
+height = 22.666668
+
+[node name="EnemySlime" type="CharacterBody2D"]
+scale = Vector2(1.5, 1.5)
+script = ExtResource("1_0ae7n")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = ExtResource("1_hsbk2")
+animation = &"idle"
+autoplay = "idle"
+frame_progress = 0.67393494
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0.6666667, 5.3333335)
+rotation = 1.5707964
+shape = SubResource("CapsuleShape2D_0ae7n")
+
+[node name="Detection Area" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Detection Area"]
+shape = SubResource("CircleShape2D_0ae7n")
+
+[node name="Wander Time" type="Timer" parent="."]
+wait_time = 2.0
+autostart = true
+
+[node name="Hitbox" type="Area2D" parent="."]
+position = Vector2(0, -1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(0.6666667, 6.3333335)
+rotation = 1.5707964
+shape = SubResource("CapsuleShape2D_wyclx")
+debug_color = Color(0.77415425, 0.41704836, 0.4028659, 0.41960785)
+
+[connection signal="body_entered" from="Detection Area" to="." method="_on_detection_area_body_entered"]
+[connection signal="body_exited" from="Detection Area" to="." method="_on_detection_area_body_exited"]
+[connection signal="timeout" from="Wander Time" to="." method="_on_wander_time_timeout"]
+[connection signal="body_entered" from="Hitbox" to="." method="_on_hitbox_body_entered"]

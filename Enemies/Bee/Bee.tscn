@@ -1,0 +1,44 @@
+[gd_scene load_steps=6 format=3 uid="uid://1ko42sy2bbex"]
+
+[ext_resource type="Script" uid="uid://dhqwjyx1i1ipg" path="res://Enemies/Bee/bee.gd" id="1_x3hdx"]
+[ext_resource type="SpriteFrames" uid="uid://o3oyf222lg0s" path="res://Enemies/Bee/Bee.tres" id="2_x3hdx"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_4aoww"]
+radius = 8.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2e3p1"]
+radius = 73.552704
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_x3hdx"]
+radius = 9.0
+
+[node name="EnemyBee" type="CharacterBody2D"]
+script = ExtResource("1_x3hdx")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+sprite_frames = ExtResource("2_x3hdx")
+animation = &"fly"
+autoplay = "fly"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_4aoww")
+
+[node name="Detection Area" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Detection Area"]
+shape = SubResource("CircleShape2D_2e3p1")
+
+[node name="Wander Time" type="Timer" parent="."]
+wait_time = 2.0
+autostart = true
+
+[node name="Hitbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("CircleShape2D_x3hdx")
+
+[connection signal="body_entered" from="Detection Area" to="." method="_on_detection_area_body_entered"]
+[connection signal="body_exited" from="Detection Area" to="." method="_on_detection_area_body_exited"]
+[connection signal="timeout" from="Wander Time" to="." method="_on_wander_time_timeout"]
+[connection signal="body_entered" from="Hitbox" to="." method="_on_hitbox_body_entered"]
