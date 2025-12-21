@@ -6,6 +6,8 @@ var current_time = 0.0
 var battle_active = true
 var is_waiting_next_turn = false
 var is_confirming_flee = false 
+var is_performing_action = false 
+var powerup_hits = 0             
 
 # --- ULTIMATE SYSTEM ---
 var max_mana = 100
@@ -33,7 +35,7 @@ var current_question_data = {}
 # --- REFERENSI SCENE ---
 var floating_text_scene = preload("res://Scenes/FloatingText.tscn")
 
-# --- REFERENSI NODE ---
+# --- REFERENSI NODE UI ---
 @onready var timer_label = $TimerUI/TimerLabel
 @onready var timer_bar = $TimerUI/TimerBar
 @onready var question_label = $ActionPanel/QuestionBox/QuestionLabel
@@ -42,9 +44,13 @@ var floating_text_scene = preload("res://Scenes/FloatingText.tscn")
 @onready var buttons_grid = $ActionPanel/ButtonsGrid
 
 # UI ULTIMATE & EXIT
-@onready var ult_progress = $UltCircle       
+@onready var ult_progress = $UltCircle        
 @onready var ult_button = $UltCircle/UltButton 
 @onready var exit_button = $ExitButton
+
+# PARRY AND POWERUP
+@onready var parry_qte_system = $ParryQTE
+@onready var powerup_qte = $PowerupQTE
 
 # ANIMASI & WORLD
 @onready var player_anim = $BattleArea/PlayerAnim
@@ -69,14 +75,19 @@ func _ready():
 	if ult_button:
 		ult_button.pressed.connect(perform_ultimate)
 		ult_button.focus_mode = Control.FOCUS_NONE 
-		# ult_button.disabled = true <-- [DEV: Button Selalu Aktif]
 	
 	if exit_button:
 		exit_button.pressed.connect(ask_to_flee)
 		exit_button.focus_mode = Control.FOCUS_NONE
 	
+	# [SETUP PARRY SYSTEM]
+	if parry_qte_system:
+		parry_qte_system.parry_finished.connect(_on_parry_completed)
+		parry_qte_system.visible = false
+	
+	# [FIX] Mana & HP kembali normal
 	player_hp = Global.player_current_hp
-	current_mana = max_mana # [DEV: Mana Selalu Penuh]
+	current_mana = Global.player_current_mana 
 	
 	load_enemy_data()
 	setup_player_anim()
@@ -98,13 +109,13 @@ func _ready():
 		set_buttons_enabled(false)
 
 func _process(delta):
-	if battle_active and not is_waiting_next_turn:
-		handle_gamepad_input()
-
-	if is_confirming_flee:
+	# [FIX] Hentikan semua update timer dan input jika sedang melakukan aksi (QTE/Animasi)
+	if is_performing_action: 
 		return
 
 	if battle_active and not is_waiting_next_turn:
+		handle_gamepad_input()
+
 		current_time -= delta
 		timer_bar.value = current_time
 		timer_label.text = "%.2fs" % current_time
@@ -118,7 +129,13 @@ func _process(delta):
 		if current_time <= 0:
 			handle_timeout()
 
+# --- INPUT HANDLING (Parry & Menu) ---
+func _input(event):
+	pass
+
 func handle_gamepad_input():
+	if parry_qte_system and parry_qte_system.is_active: return
+
 	if is_confirming_flee:
 		if Input.is_action_just_pressed("arrow_right"): change_selection(1)
 		elif Input.is_action_just_pressed("arrow_left"): change_selection(-1)
@@ -145,6 +162,166 @@ func handle_timeout():
 	await get_tree().create_timer(1.5).timeout
 	enemy_turn()
 
+# =========================================
+# --- SISTEM MUSUH & PARRY (LOGIKA BARU) ---
+# =========================================
+
+func enemy_turn():
+	if not battle_active: return
+	
+	# 1. Musuh MAJU ke depan Player
+	await enemy_move_to_player()
+	
+	# 2. TEPAT SEBELUM MENYERANG: Cek Kesempatan Parry
+	var roll = randf()
+	
+	if roll < Global.player_parry_chance:
+		# --- YES: PARRY MODE DIMULAI ---
+		Engine.time_scale = 0.1 # Slow Motion Dramatis
+		
+		# Hitung posisi muncul QTE (Depan-Atas Player)
+		var center_pos = player_anim.global_position
+		var random_x = randf_range(10, 120)
+		var random_y = randf_range(-120, -40)
+		var spawn_pos = center_pos + Vector2(random_x, random_y)
+		
+		# Panggil QTE dengan Durasi Cepat (0.6 detik)
+		parry_qte_system.start_qte(spawn_pos, 0.6)
+		
+		# KITA STOP DULU DI SINI. Nanti dilanjut di _on_parry_completed
+		return
+		
+	else:
+		# --- NO: NORMAL HIT (Tidak ada kesempatan parry) ---
+		# Lanjutkan animasi serangan
+		await enemy_play_attack_anim()
+		
+		# Hitung dan terapkan damage
+		var min_dmg = enemy_data.get("damage_min", 1)
+		var max_dmg = enemy_data.get("damage_max", 5)
+		var damage = randi_range(min_dmg, max_dmg)
+		finish_enemy_attack(damage)
+		
+		# Musuh mundur
+		await enemy_return_to_pos()
+
+# Fungsi Callback saat Parry Selesai (Sukses/Gagal)
+# Fungsi Callback saat Parry Selesai (Sukses/Gagal)
+func _on_parry_completed(is_success: bool):
+	# Kembalikan waktu normal INSTAN
+	Engine.time_scale = 1.0 
+	
+	if is_success:
+		# --- PARRY SUKSES ---
+		
+		# 1. Player Pasang Badan Dulu (Block/Parry)
+		if player_anim.sprite_frames.has_animation("block"):
+			player_anim.play("block")
+		elif player_anim.sprite_frames.has_animation("parry"):
+			player_anim.play("parry")
+		
+		# 2. Musuh TETAP MENYERANG (Secara Visual)
+		# Kita panggil ini supaya lebahnya maju/nyengat ke arah perisai player
+		await enemy_play_attack_anim()
+		
+		# 3. Munculkan Efek Tabrakan / Perfect Block Tepat Setelah Serangan Selesai
+		spawn_floating_text(player_anim, "PERFECT PARRY!!", Color(0, 1, 0)) # Teks Hijau
+		
+		# Efek Flash Putih di Player
+		var flash_tween = get_tree().create_tween()
+		player_anim.modulate = Color(5, 5, 5, 1) 
+		flash_tween.tween_property(player_anim, "modulate", Color(1, 1, 1, 1), 0.3)
+			
+		# 4. Selesaikan Logika (Damage 0)
+		finish_enemy_attack(0) 
+		
+		# Tunggu sebentar biar pose block kelihatan keren menahan serangan
+		await get_tree().create_timer(0.3).timeout
+		
+		# Balik ke Idle
+		if player_anim.sprite_frames.has_animation("idle"):
+			player_anim.play("idle")
+		
+		# 5. Musuh Mundur
+		await enemy_return_to_pos()
+		
+	else:
+		# --- PARRY GAGAL (TOO LATE) ---
+		spawn_floating_text(player_anim, "PARRY FAILED", Color(1.0, 0.0, 0.0, 1.0)) # Teks merah
+		
+		# JEDA SEBENTAR agar teks "TOO LATE" sempat naik
+		await get_tree().create_timer(0.4).timeout
+		
+		# Musuh Serang
+		await enemy_play_attack_anim()
+		
+		# Kena Damage
+		var min_dmg = enemy_data.get("damage_min", 1)
+		var max_dmg = enemy_data.get("damage_max", 5)
+		var damage = randi_range(min_dmg, max_dmg)
+		finish_enemy_attack(damage)
+		
+		# Musuh mundur
+		await enemy_return_to_pos()
+
+# --- Helper Functions untuk Animasi Musuh yang Dipecah ---
+
+func enemy_move_to_player():
+	enemy_anim.z_index = 1  
+	var tween = get_tree().create_tween()
+	var offset_jarak = enemy_data.get("attack_offset", 70.0)
+	var attack_pos = Vector2(player_anim.position.x + offset_jarak, player_anim.position.y)
+	tween.tween_property(enemy_anim, "position", attack_pos, 0.4).set_trans(Tween.TRANS_SINE)
+	await tween.finished
+
+func enemy_play_attack_anim():
+	if enemy_anim.sprite_frames.has_animation("attack"):
+		enemy_anim.play("attack")
+		await enemy_anim.animation_finished
+	else:
+		# Efek "Bump" sederhana jika tidak ada animasi attack
+		var bump_tween = get_tree().create_tween()
+		var hit_pos = player_anim.position 
+		bump_tween.tween_property(enemy_anim, "position", hit_pos, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		bump_tween.tween_property(enemy_anim, "position", enemy_anim.position, 0.2) # Balik ke posisi depan player
+		await bump_tween.finished
+
+func enemy_return_to_pos():
+	var return_tween = get_tree().create_tween()
+	return_tween.tween_property(enemy_anim, "position", original_enemy_pos, 0.4).set_trans(Tween.TRANS_SINE)
+	await return_tween.finished
+	enemy_anim.z_index = 0
+	if enemy_hp > 0:
+		enemy_anim.play(enemy_idle_anim_name)
+
+# =========================================
+# --- END OF NEW LOGIC ---
+# =========================================
+
+func finish_enemy_attack(damage_amount):
+	player_hp -= damage_amount
+	if player_hp < 0: player_hp = 0
+	Global.player_current_hp = player_hp
+	
+	# Update UI & Text
+	if damage_amount > 0:
+		spawn_floating_text(player_anim, str(damage_amount), Color(1, 0.5, 0))
+		question_label.text = "🛡️ MUSUH MENYERANG!\nKamu terkena %s Damage." % str(damage_amount)
+		await play_player_hit_effect()
+	else:
+		question_label.text = "✨ SERANGAN DITANGKIS!\nKamu tidak terkena damage."
+	
+	update_ui()
+	
+	# Cek Mati/Hidup
+	if player_hp <= 0:
+		game_over("💀 HP HABIS!\nKamu butuh belajar lagi...")
+	else:
+		await get_tree().create_timer(1.5).timeout # Jeda sedikit sebelum giliran baru
+		start_new_turn()
+
+# --- UTILS LAINNYA (Tidak Berubah) ---
+
 func update_mana_ui():
 	if ult_progress:
 		ult_progress.max_value = max_mana
@@ -166,7 +343,6 @@ func increase_mana(amount):
 	Global.player_current_mana = current_mana
 	update_mana_ui()
 
-# --- FUNGSI FLOATING TEXT (STRING) ---
 func spawn_floating_text(target_node, value_text, color):
 	if floating_text_scene:
 		var text_instance = floating_text_scene.instantiate()
@@ -193,7 +369,6 @@ func spawn_floating_text(target_node, value_text, color):
 		text_instance.global_position = target_node.global_position + Vector2(random_x, offset_y)
 		text_instance.setup(str(value_text), color)
 
-# --- FUNGSI HELPER ANIMASI ---
 func wait_for_frame(anim_sprite, target_frame):
 	var safety_timer = 0.0
 	while anim_sprite.frame < target_frame:
@@ -203,6 +378,11 @@ func wait_for_frame(anim_sprite, target_frame):
 			break
 
 func play_enemy_hit_effect():
+	# [FIX] Selalu berikan kilatan putih (Flash) di awal, bahkan untuk Slime
+	var flash_tween = get_tree().create_tween()
+	enemy_anim.modulate = Color(10, 10, 10, 1) # Putih sangat terang (HDR Bloom)
+	flash_tween.tween_property(enemy_anim, "modulate", Color(1, 1, 1, 1), 0.15)
+	
 	if enemy_anim.sprite_frames.has_animation("hit"):
 		enemy_anim.frame = 0 
 		enemy_anim.play("hit")
@@ -210,10 +390,8 @@ func play_enemy_hit_effect():
 		if enemy_hp > 0:
 			enemy_anim.play(enemy_idle_anim_name)
 	else:
-		var tween = get_tree().create_tween()
-		tween.tween_property(enemy_anim, "modulate", Color(10, 10, 10, 1), 0.1)
-		tween.tween_property(enemy_anim, "modulate", Color(1, 1, 1, 1), 0.1)
-		await tween.finished
+		# Jika tidak ada animasi hit, tunggu tween flash selesai
+		await flash_tween.finished
 
 func play_player_hit_effect():
 	if player_anim.sprite_frames.has_animation("hit"):
@@ -238,7 +416,8 @@ func shake_screen(duration, intensity):
 			
 	tween.tween_property(self, "position", base_pos, 0.0)
 
-# --- ULTIMATE COMBO (20 SLASH + BIG FINISHER) ---
+# --- ULTIMATE & ATTACK LOGIC ---
+
 func perform_ultimate():
 	if current_mana < max_mana or is_waiting_next_turn or not battle_active:
 		return
@@ -253,35 +432,40 @@ func perform_ultimate():
 	
 	question_label.text = "⚡ ULTIMATE COMBO! ⚡"
 	
-	# 1. EMOTE
 	if player_anim.sprite_frames.has_animation("emote"):
 		player_anim.play("emote")
 		await player_anim.animation_finished
 	
-	# 2. ATTACK
 	await move_player_to_enemy()
 	player_anim.modulate = Color(2, 0.5, 0.5) 
 	
-	# 10 Loop x 2 Hit = 20 Slash
-	var loop_count = 10 
+	var slash_count = 10 
 	var initial_speed = 1.5
 	
-	for i in range(loop_count):
+	for i in range(slash_count):
 		if player_anim.sprite_frames.has_animation("attack_2"):
 			player_anim.frame = 0 
 			player_anim.play("attack_2")
 			player_anim.speed_scale = initial_speed + (i * 0.3)
 			
+			# Slash Pertama (Frame 2)
 			await wait_for_frame(player_anim, 2)
 			shake_screen(0.1, 1.0 + i)
 			play_enemy_hit_effect()
 			
-			# Slash Damage 1-5 (No Crit, Merah)
 			var slash_dmg = randi_range(1, 5)
 			enemy_hp -= slash_dmg
 			spawn_floating_text(enemy_anim, str(slash_dmg), Color(1, 0, 0))
+			update_ui() # [FIX] Darah berkurang seketika di tebasan 1
 			
-			if i < loop_count - 1:
+			# Slash Kedua (Frame 5)
+			await wait_for_frame(player_anim, 5)
+			var slash_dmg_2 = randi_range(1, 5)
+			enemy_hp -= slash_dmg_2
+			spawn_floating_text(enemy_anim, str(slash_dmg_2), Color(1, 0, 0))
+			update_ui() # [FIX] Darah berkurang seketika di tebasan 2
+			
+			if i < slash_count - 1:
 				await get_tree().process_frame
 			else:
 				await player_anim.animation_finished
@@ -290,7 +474,6 @@ func perform_ultimate():
 	
 	player_anim.speed_scale = 1.0 
 	
-	# 3. LAST BLOW (Damage Besar + Bisa Crit)
 	if player_anim.sprite_frames.has_animation("attack_3"):
 		player_anim.frame = 0
 		player_anim.play("attack_3")
@@ -302,7 +485,6 @@ func perform_ultimate():
 	shake_screen(0.6, 15.0)
 	play_enemy_hit_effect() 
 	
-	# Hitung Final
 	var base_ult_dmg = Global.player_damage_max * 5
 	var is_crit_final = randf() < Global.player_crit_chance
 	var final_damage = base_ult_dmg
@@ -316,6 +498,7 @@ func perform_ultimate():
 	if enemy_hp < 0: enemy_hp = 0
 	
 	spawn_floating_text(enemy_anim, final_text, Color(1, 0, 0)) 
+	update_ui() # [FIX] Update untuk serangan final
 	
 	await get_tree().create_timer(0.15).timeout 
 	Engine.time_scale = 1.0
@@ -326,7 +509,6 @@ func perform_ultimate():
 	await return_player_to_start()
 	
 	question_label.text = "💥 FINAL BLOW!!\nTotal Damage Dahsyat!" 
-	update_ui()
 	
 	if enemy_hp > 0:
 		enemy_anim.play(enemy_idle_anim_name)
@@ -338,9 +520,9 @@ func perform_ultimate():
 	await get_tree().create_timer(1.0).timeout
 	enemy_turn()
 
-# --- STANDARD ATTACK (LOGIKA TIMER) ---
 func check_answer(btn_index):
-	if is_waiting_next_turn or not battle_active: return
+	# [FIX] Tambahkan pengecekan is_performing_action agar tidak double input
+	if is_waiting_next_turn or not battle_active or is_performing_action: return
 	
 	if is_confirming_flee:
 		if btn_index == 0: perform_flee()
@@ -349,101 +531,59 @@ func check_answer(btn_index):
 
 	set_buttons_enabled(false)
 	is_waiting_next_turn = true
+	is_performing_action = true # Kunci status agar turn tidak kacau
 	
 	if btn_index == current_correct_index:
 		increase_mana(25) 
 		await move_player_to_enemy()
 		
-		# --- HITUNG DAMAGE ---
 		var damage_min = Global.player_damage_min
 		var damage_max = Global.player_damage_max
 		var is_critical = randf() < Global.player_crit_chance
 		var raw_damage = randi_range(damage_min, damage_max)
 		
-		var multiplier = 1.0
-		var anim_to_play = ""
-		var info_text = ""
+		# --- LOGIKA POWER-UP ATTACK (Perfect Answer > 6s) ---
+		var p_chance = 0.5 # Peluang 50%, sesuaikan dengan Global.player_powerup_chance jika ada
+		if "player_powerup_chance" in Global: p_chance = Global.player_powerup_chance
 		
-		# --- LOGIKA TIMER (Sisa Waktu) ---
-		
-		# 1. CEPAT (Sisa > 6 Detik) -> DAMAGE BESAR (x1.5) -> ATTACK_2
-		if current_time > 6.0: 
-			multiplier = 1.5
-			anim_to_play = "attack_2"
-			info_text = " (PERFECT!)"
+		if current_time > 6.0 and randf() < p_chance:
+			# 1. Jalankan urutan QTE (Fungsi ini harus ada di script)
+			await run_powerup_qte_sequence()
 			
-		# 2. SEDANG (Sisa 3 - 6 Detik) -> DAMAGE NORMAL (x1.0) -> ATTACK_1
-		elif current_time >= 3.0: 
-			multiplier = 1.0
-			anim_to_play = "attack_1"
-			info_text = ""
-			
-		# 3. LAMBAT (Sisa < 3 Detik) -> DAMAGE KECIL (x0.8) -> ATTACK_3
-		else: 
-			multiplier = 0.8
-			anim_to_play = "attack_3"
-			info_text = " (WEAK!)"
-		
-		# Final Damage
-		var final_damage = int(raw_damage * multiplier)
-		var text_color = Color(1, 1, 1) # Putih
-		var text_display = str(final_damage)
-		
-		if is_critical:
-			final_damage = int(final_damage * 1.5)
-			text_display = str(final_damage) + "!!"
-			text_color = Color(1, 0, 0) # Merah
-		
-		# --- EKSEKUSI ANIMASI ---
-		
-		# KASUS 1: ATTACK_2 (DUAL HIT) - UNTUK CEPAT
-		if anim_to_play == "attack_2" and player_anim.sprite_frames.has_animation("attack_2"):
-			player_anim.frame = 0
-			player_anim.play("attack_2")
-			
-			var dmg_1 = int(final_damage / 2)
-			var dmg_2 = final_damage - dmg_1
-			var txt_1 = str(dmg_1) + ("!!" if is_critical else "")
-			var txt_2 = str(dmg_2) + ("!!" if is_critical else "")
-			
-			await wait_for_frame(player_anim, 2)
-			enemy_hp -= dmg_1
-			spawn_floating_text(enemy_anim, txt_1, text_color)
-			play_enemy_hit_effect()
-			
-			await wait_for_frame(player_anim, 5)
-			enemy_hp -= dmg_2
-			spawn_floating_text(enemy_anim, txt_2, text_color)
-			play_enemy_hit_effect()
-			
-			await player_anim.animation_finished
-			if player_anim.sprite_frames.has_animation("attack_2_recover"):
-				player_anim.play("attack_2_recover")
-				await player_anim.animation_finished
-		
-		# KASUS 2: ATTACK_1 atau ATTACK_3 (SINGLE HIT)
-		else:
-			if not player_anim.sprite_frames.has_animation(anim_to_play):
-				anim_to_play = "attack_1" # Fallback
+			# 2. Tentukan aksi berdasarkan jumlah hits sukses
+			if powerup_hits == 2:
+				question_label.text = "🔥 FULL POWER COMBO!! 🔥"
+				spawn_floating_text(player_anim, "POWER UP!!", Color.RED) # Merah jika 2 hit
+				await execute_combo_attack(raw_damage, is_critical, ["attack_2", "attack_1", "attack_3"])
 				
-			player_anim.frame = 0
-			player_anim.play(anim_to_play)
+			elif powerup_hits == 1:
+				question_label.text = "⚡ POWER UP ATTACK! ⚡"
+				spawn_floating_text(player_anim, "POWER UP!", Color.YELLOW) # Kuning jika 1 hit
+				await execute_combo_attack(raw_damage, is_critical, ["attack_2", "attack_1"])
+				
+			else:
+				question_label.text = "⚔️ POWER UP MISSED!\nSerangan Normal..."
+				await execute_combo_attack(raw_damage, is_critical, ["attack_2"])
+		
+		else:
+			# --- LOGIKA SERANGAN NORMAL (Berdasarkan Waktu) ---
+			var multiplier = 1.0
+			var anim_to_play = "attack_1"
+			var info_text = ""
 			
-			# Frame Hit: Attack_1 = Frame 5, Attack_3 = Frame 2
-			var hit_frame = 2
-			if anim_to_play == "attack_1": hit_frame = 5
+			if current_time > 6.0: 
+				multiplier = 1.5
+				anim_to_play = "attack_2"
+				info_text = " (PERFECT!)"
+			elif current_time < 3.0: 
+				multiplier = 0.8
+				anim_to_play = "attack_3"
+				info_text = " (WEAK!)"
 			
-			await wait_for_frame(player_anim, hit_frame)
-			
-			enemy_hp -= final_damage
-			spawn_floating_text(enemy_anim, text_display, text_color)
-			play_enemy_hit_effect()
-			await player_anim.animation_finished
+			question_label.text = "⚔️ HIT!%s" % info_text
+			await execute_combo_attack(int(raw_damage * multiplier), is_critical, [anim_to_play])
 		
 		if enemy_hp < 0: enemy_hp = 0
-		
-		var log_crit = " (CRITICAL!)" if is_critical else ""
-		question_label.text = "⚔️ HIT!%s%s\nMusuh terkena %s Damage." % [log_crit, info_text, str(final_damage)]
 		update_ui()
 		await return_player_to_start()
 		
@@ -452,70 +592,95 @@ func check_answer(btn_index):
 		update_ui()
 		await get_tree().create_timer(1.0).timeout
 	
+	# [FIX] Reset status perform aksi setelah semua animasi selesai
+	is_performing_action = false 
+	
 	if enemy_hp <= 0:
 		win_battle()
 		return
 	
-	await get_tree().create_timer(0.8).timeout
+	await get_tree().create_timer(0.5).timeout
 	enemy_turn()
 
-# --- GERAKAN MUSUH ---
-func perform_enemy_attack_animation():
-	enemy_anim.z_index = 1  
-	player_anim.z_index = 0 
-	var tween = get_tree().create_tween()
-	var offset_jarak = enemy_data.get("attack_offset", 70.0)
-	var attack_pos = Vector2(player_anim.position.x + offset_jarak, player_anim.position.y)
+# Menjalankan 2 QTE berurutan di atas musuh
+func run_powerup_qte_sequence():
+	powerup_hits = 0
+	Engine.time_scale = 0.2 # Slow motion dramatis
 	
-	tween.tween_property(enemy_anim, "position", attack_pos, 0.5).set_trans(Tween.TRANS_SINE)
-	await tween.finished
+	# --- QTE 1: AREA BESAR & LOKASI KANAN-ATAS ---
+	# Offset X: +20 s/d +80 (Kanan) | Offset Y: -80 s/d -120 (Atas)
+	var pos1 = enemy_anim.global_position + Vector2(randf_range(20, 80), randf_range(-80, -120))
 	
-	if enemy_anim.sprite_frames.has_animation("attack"):
-		enemy_anim.play("attack")
-		await enemy_anim.animation_finished
-	else:
-		var bump_tween = get_tree().create_tween()
-		var hit_pos = player_anim.position 
-		bump_tween.tween_property(enemy_anim, "position", hit_pos, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		bump_tween.tween_property(enemy_anim, "position", attack_pos, 0.2)
-		await bump_tween.finished
+	# Panggil dengan ukuran zone 40.0 (Besar/Mudah)
+	powerup_qte.start_powerup(pos1, 0.8, 40.0)
+	if await powerup_qte.powerup_finished: 
+		powerup_hits += 1
 	
-	var return_tween = get_tree().create_tween()
-	return_tween.tween_property(enemy_anim, "position", original_enemy_pos, 0.5).set_trans(Tween.TRANS_SINE)
-	await return_tween.finished
+	await get_tree().create_timer(0.1, true).timeout # Jeda singkat real-time
 	
-	if enemy_hp > 0:
-		enemy_anim.play(enemy_idle_anim_name)
+	# --- QTE 2: AREA KECIL & LOKASI KANAN-ATAS ---
+	if battle_active:
+		# Posisi sedikit digeser agar tidak menumpuk sempurna
+		var pos2 = enemy_anim.global_position + Vector2(randf_range(40, 100), randf_range(-60, -100))
+		
+		# Panggil dengan ukuran zone 15.0 (Kecil/Sulit)
+		powerup_qte.start_powerup(pos2, 0.7, 15.0)
+		if await powerup_qte.powerup_finished: 
+			powerup_hits += 1
 	
-	enemy_anim.z_index = 0
+	Engine.time_scale = 1.0 # Balik ke waktu normal
 
-func enemy_turn():
-	if not battle_active: return
-	
-	await perform_enemy_attack_animation()
-	
-	var min_dmg = enemy_data.get("damage_min", 1)
-	var max_dmg = enemy_data.get("damage_max", 5)
-	var damage = randi_range(min_dmg, max_dmg)
-	
-	player_hp -= damage
-	if player_hp < 0: player_hp = 0
-	Global.player_current_hp = player_hp
-	
-	spawn_floating_text(player_anim, damage, Color(1, 0.5, 0))
-	
-	question_label.text = "🛡️ MUSUH MENYERANG BALIK!\nKamu terkena %s Damage." % str(damage)
-	update_ui()
-	
-	await play_player_hit_effect()
-	
-	if player_hp <= 0:
-		game_over("💀 HP HABIS!\nKamu butuh belajar lagi...")
-	else:
-		await get_tree().create_timer(2.0).timeout
-		start_new_turn()
+# Menjalankan list animasi combo satu per satu
+func execute_combo_attack(base_dmg, is_crit, anim_list):
+	for i in range(anim_list.size()):
+		var anim_name = anim_list[i]
+		if not player_anim.sprite_frames.has_animation(anim_name): continue
+		
+		player_anim.frame = 0
+		player_anim.play(anim_name)
+		
+		# --- LOGIKA MULTI-HIT UNTUK ATTACK_2 ---
+		if anim_name == "attack_2":
+			# Bagi damage menjadi dua bagian agar sinkron dengan 2 slash
+			var dmg_per_hit = int(base_dmg / 2)
+			if anim_list.size() > 1 and i > 0: dmg_per_hit = int(dmg_per_hit * 0.8)
+			
+			# Tunggu Slash Pertama (Frame 2)
+			await wait_for_frame_safe(player_anim, 2)
+			apply_hit_logic(dmg_per_hit, is_crit)
+			
+			# Tunggu Slash Kedua (Frame 5)
+			await wait_for_frame_safe(player_anim, 5)
+			apply_hit_logic(dmg_per_hit, is_crit)
+		
+		else:
+			# Serangan normal 1 hit (attack_1 atau attack_3)
+			var hit_f = 5 if anim_name == "attack_1" else 2
+			await wait_for_frame_safe(player_anim, hit_f)
+			
+			var final_dmg = base_dmg
+			if anim_list.size() > 1 and i > 0: final_dmg = int(base_dmg * 0.8)
+			apply_hit_logic(final_dmg, is_crit)
+		
+		await player_anim.animation_finished
 
-# --- STANDAR UTILS ---
+# Ganti fungsi pembantu ini jika kamu menggunakannya dalam check_answer
+func apply_hit_logic(dmg, is_crit):
+	if is_crit: dmg = int(dmg * 1.5)
+	enemy_hp = max(0, enemy_hp - dmg)
+	spawn_floating_text(enemy_anim, str(dmg) + ("!!" if is_crit else ""), Color.RED if is_crit else Color.WHITE)
+	play_enemy_hit_effect()
+	update_ui() # [FIX] Update bar HP per hit untuk serangan normal/power-up
+	shake_screen(0.1, 5.0)
+
+# Pengaman agar tidak stuck jika animasi gagal mencapai frame tertentu
+func wait_for_frame_safe(sprite, target):
+	var t = 0.0; var timeout = 1.5
+	while sprite.frame < target and sprite.is_playing():
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		if t > timeout: break # Paksa lanjut setelah 1.5 detik
+
 func setup_player_anim():
 	if player_anim.sprite_frames == null: return
 	if player_anim.sprite_frames.has_animation("idle"): player_anim.play("idle")
@@ -673,6 +838,15 @@ func game_over(reason):
 	Engine.time_scale = 1.0
 	battle_active = false
 	question_label.text = reason
+	
+	if player_anim:
+		var tween = get_tree().create_tween()
+		tween.tween_property(player_anim, "modulate:a", 0.0, 1.5)
+		if player_anim.sprite_frames.has_animation("die"):
+			player_anim.play("die")
+	
+	await get_tree().create_timer(2.0).timeout
+	Global.change_scene_with_loading("res://Scenes/Main.tscn")
 
 func quit_battle():
 	var target_map = "res://Scenes/map2.tscn"

@@ -1,8 +1,10 @@
-[gd_scene load_steps=9 format=3 uid="uid://dn707pc3qgodm"]
+[gd_scene load_steps=11 format=3 uid="uid://dn707pc3qgodm"]
 
 [ext_resource type="FontFile" uid="uid://dxg0puyk07c1q" path="res://Fonts/Avenixel-Regular.ttf" id="1_12f34"]
 [ext_resource type="Script" uid="uid://4p3uon117o2r" path="res://Scenes/BattleScene.gd" id="1_hip74"]
 [ext_resource type="SpriteFrames" uid="uid://bwib4kufbt3ku" path="res://Player/PlayerFrames.tres" id="2_b2eky"]
+[ext_resource type="PackedScene" uid="uid://lw3vd2kf4bdo" path="res://UI/ParryQTE.tscn" id="4_ahap6"]
+[ext_resource type="PackedScene" uid="uid://nvft4h7nad3u" path="res://UI/PowerupQte.tscn" id="5_hb1yk"]
 
 [sub_resource type="SpriteFrames" id="SpriteFrames_b2eky"]
 animations = []
@@ -211,3 +213,18 @@ offset_right = 54.0
 offset_bottom = 45.0
 theme_override_fonts/font = ExtResource("1_12f34")
 text = "exit"
+
+[node name="ParryQTE" parent="." instance=ExtResource("4_ahap6")]
+layout_mode = 1
+offset_left = 440.0
+offset_top = 199.0
+offset_right = -662.0
+offset_bottom = -399.0
+pivot_offset = Vector2(25, 25)
+
+[node name="PowerupQTE" parent="." instance=ExtResource("5_hb1yk")]
+layout_mode = 1
+offset_left = 518.0
+offset_top = 199.0
+offset_right = -581.0
+offset_bottom = -400.0

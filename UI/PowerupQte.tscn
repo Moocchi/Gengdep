@@ -1,0 +1,152 @@
+[gd_scene load_steps=10 format=3 uid="uid://nvft4h7nad3u"]
+
+[ext_resource type="FontFile" uid="uid://dxg0puyk07c1q" path="res://Fonts/Avenixel-Regular.ttf" id="1_6h4g0"]
+[ext_resource type="Script" uid="uid://kkkj400b3co4" path="res://UI/PowerupQTE.gd" id="1_7bctm"]
+[ext_resource type="Texture2D" uid="uid://vitpx06b5gel" path="res://UI/circle riple.tres" id="2_3oufh"]
+
+[sub_resource type="Gradient" id="Gradient_track"]
+offsets = PackedFloat32Array(0.82, 0.85, 0.95, 0.98)
+colors = PackedColorArray(0, 0, 0, 0, 1, 1, 1, 0.2, 1, 1, 1, 0.2, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_7bctm"]
+gradient = SubResource("Gradient_track")
+width = 70
+height = 70
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.89743596, 0.1794872)
+
+[sub_resource type="Gradient" id="Gradient_zone"]
+offsets = PackedFloat32Array(0.82, 0.85, 0.95, 0.98)
+colors = PackedColorArray(0, 0, 0, 0, 0, 1, 0.5, 1, 0, 1, 0.5, 1, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_3oufh"]
+gradient = SubResource("Gradient_zone")
+width = 70
+height = 70
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.8547009, 0.12820514)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hqlay"]
+bg_color = Color(0, 0, 0, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+
+[sub_resource type="LabelSettings" id="LabelSettings_n2njt"]
+font = ExtResource("1_6h4g0")
+font_size = 14
+outline_size = 3
+outline_color = Color(0, 0, 0, 1)
+
+[node name="PowerupQTE" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_7bctm")
+
+[node name="QTEContainer" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BaseCircle" type="TextureRect" parent="QTEContainer"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -35.0
+offset_top = -35.0
+offset_right = 35.0
+offset_bottom = 35.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = SubResource("GradientTexture2D_7bctm")
+
+[node name="SuccessZone" type="TextureProgressBar" parent="QTEContainer/BaseCircle"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+rotation = -6.28318
+pivot_offset = Vector2(35, 35)
+value = 25.0
+fill_mode = 4
+texture_progress = SubResource("GradientTexture2D_3oufh")
+
+[node name="SpinnerHand" type="ColorRect" parent="QTEContainer/BaseCircle"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -1.5
+offset_top = -37.0
+offset_right = 1.5
+offset_bottom = -27.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(1.5, 38)
+color = Color(1, 0.3, 0.3, 1)
+
+[node name="SuccessRipple" type="TextureRect" parent="QTEContainer"]
+layout_mode = 0
+offset_left = -35.0
+offset_top = -35.0
+offset_right = 35.0
+offset_bottom = 35.0
+pivot_offset = Vector2(35, 35)
+texture = ExtResource("2_3oufh")
+
+[node name="CenterKeyPrompt" type="Button" parent="QTEContainer"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -25.0
+offset_top = -25.0
+offset_right = 25.0
+offset_bottom = 25.0
+grow_horizontal = 2
+grow_vertical = 2
+focus_mode = 0
+theme_override_styles/normal = SubResource("StyleBoxFlat_hqlay")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_hqlay")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hqlay")
+theme_override_styles/focus = SubResource("StyleBoxFlat_hqlay")
+
+[node name="Label" type="Label" parent="QTEContainer/CenterKeyPrompt"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_right = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "PRESS"
+label_settings = SubResource("LabelSettings_n2njt")
+horizontal_alignment = 1
+vertical_alignment = 1

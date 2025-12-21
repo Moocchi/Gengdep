@@ -11,7 +11,11 @@ var player_current_mana = 0
 # [BARU] Status Damage Player
 var player_damage_min = 10
 var player_damage_max = 15
-var player_crit_chance = 0.0 # 40% kesempatan critical hit
+var player_crit_chance = 0.4 # 40% kesempatan critical hit
+
+#PARRY AND POWER UP CHANCE
+var player_parry_chance = 1.0 # 20% chance parry
+var player_powerup_chance = 1.0 # 50% peluang muncul jika jawaban Perfect
 
 # --- POSISI & NAVIGASI ---
 var last_player_position = Vector2.ZERO

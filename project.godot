@@ -24,6 +24,10 @@ Global="*res://Global/Global.gd"
 
 gdscript/canvas_textures/default_texture_filter=1
 
+[display]
+
+window/stretch/mode="canvas_items"
+
 [input]
 
 move_up={
