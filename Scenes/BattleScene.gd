@@ -17,6 +17,8 @@ var current_mana = 0
 var player_hp = 100 
 var enemy_hp = 100
 var enemy_data = {} 
+var enemy_charge_level = 0 # <--- TAMBAHKAN INI
+var max_enemy_charge = 3   # <--- TAMBAHKAN INI
 
 # --- POSISI & ANIMASI ---
 var original_player_pos = Vector2.ZERO
@@ -42,6 +44,8 @@ var floating_text_scene = preload("res://Scenes/FloatingText.tscn")
 @onready var player_info = $TopBar/PlayerInfo
 @onready var enemy_info = $TopBar/EnemyInfo
 @onready var buttons_grid = $ActionPanel/ButtonsGrid
+@onready var player = $BattleArea/PlayerAnim  # Pastikan path ini sesuai dengan Scene Tree kamu
+@onready var enemy = $BattleArea/EnemyAnim
 
 # UI ULTIMATE & EXIT
 @onready var ult_progress = $UltCircle        
@@ -65,6 +69,7 @@ var floating_text_scene = preload("res://Scenes/FloatingText.tscn")
 @onready var btn4 = $ActionPanel/ButtonsGrid/Button4
 
 func _ready():
+
 	buttons = [btn1, btn2, btn3, btn4]
 	
 	btn1.pressed.connect(func(): check_answer(0))
@@ -90,6 +95,7 @@ func _ready():
 	current_mana = Global.player_current_mana 
 	
 	load_enemy_data()
+	align_positions()
 	setup_player_anim()
 	update_mana_ui()
 	
@@ -169,43 +175,68 @@ func handle_timeout():
 func enemy_turn():
 	if not battle_active: return
 	
+	var is_boss = enemy_data.get("is_boss", false)
+	var damage_multiplier = 1.0
+	
+	# --- LOGIKA BOSS CHARGE ---
+	# Syarat: Harus Boss, Level Charge kurang dari 3, dan peluang 40% (bisa diatur)
+	if is_boss and enemy_charge_level < 3 and randf() < 0.4:
+		enemy_charge_level = min(enemy_charge_level + 1, 3) 
+		await perform_boss_charge_visual() 
+		
+		question_label.text = "⚠️ %s MENGUMPULKAN ENERGI!\n(Level %d / 3)" % [enemy_data["name"], enemy_charge_level]
+		await get_tree().create_timer(1.0).timeout
+	
+	# Setting Multiplier agar lebih terasa (Skala: x2, x4, x6)
+	if enemy_charge_level == 1: damage_multiplier = 2.0
+	elif enemy_charge_level == 2: damage_multiplier = 4.0
+	elif enemy_charge_level == 3: damage_multiplier = 6.0
+	
 	# 1. Musuh MAJU ke depan Player
 	await enemy_move_to_player()
 	
-	# 2. TEPAT SEBELUM MENYERANG: Cek Kesempatan Parry
+	# 2. Cek Kesempatan Parry
 	var roll = randf()
-	
 	if roll < Global.player_parry_chance:
-		# --- YES: PARRY MODE DIMULAI ---
-		Engine.time_scale = 0.1 # Slow Motion Dramatis
-		
-		# Hitung posisi muncul QTE (Depan-Atas Player)
-		var center_pos = player_anim.global_position
-		var random_x = randf_range(10, 120)
-		var random_y = randf_range(-120, -40)
-		var spawn_pos = center_pos + Vector2(random_x, random_y)
-		
-		# Panggil QTE dengan Durasi Cepat (0.6 detik)
+		Engine.time_scale = 0.1 
+		var spawn_pos = Vector2(randf_range(300.0, 450.0), 100.0) #
 		parry_qte_system.start_qte(spawn_pos, 0.6)
-		
-		# KITA STOP DULU DI SINI. Nanti dilanjut di _on_parry_completed
 		return
-		
 	else:
-		# --- NO: NORMAL HIT (Tidak ada kesempatan parry) ---
-		# Lanjutkan animasi serangan
+		# --- NORMAL HIT ---
 		await enemy_play_attack_anim()
 		
-		# Hitung dan terapkan damage
 		var min_dmg = enemy_data.get("damage_min", 1)
 		var max_dmg = enemy_data.get("damage_max", 5)
-		var damage = randi_range(min_dmg, max_dmg)
-		finish_enemy_attack(damage)
+		var final_damage = int(randi_range(min_dmg, max_dmg) * damage_multiplier)
 		
-		# Musuh mundur
+		# Reset charge setelah menyerang agar tidak kena damage tinggi terus-menerus
+		if enemy_charge_level > 0:
+			enemy_charge_level = 0 
+		
+		finish_enemy_attack(final_damage)
 		await enemy_return_to_pos()
 
-# Fungsi Callback saat Parry Selesai (Sukses/Gagal)
+func perform_boss_charge_visual():
+	# 1. Mainkan animasi charge sampai selesai
+	if enemy_anim.sprite_frames.has_animation("charge"):
+		enemy_anim.play("charge")
+		await enemy_anim.animation_finished 
+	
+	# 2. Efek Kedip Putih Kilat (White Flash)
+	var flash_tween = create_tween()
+	var flash_color = Color(5.0, 5.0, 5.0, 1.0) # Putih HDR
+	var normal_color = Color(1.0, 1.0, 1.0, 1.0)
+	
+	# Berubah jadi putih (0.1s) lalu kembali normal (0.1s)
+	flash_tween.tween_property(enemy_anim, "modulate", flash_color, 0.2).set_trans(Tween.TRANS_LINEAR)
+	flash_tween.tween_property(enemy_anim, "modulate", normal_color, 0.2).set_trans(Tween.TRANS_LINEAR)
+	
+	await flash_tween.finished
+	
+	# 3. Kembali ke animasi Idle
+	enemy_anim.play(enemy_idle_anim_name)
+
 # Fungsi Callback saat Parry Selesai (Sukses/Gagal)
 func _on_parry_completed(is_success: bool):
 	# Kembalikan waktu normal INSTAN
@@ -268,11 +299,18 @@ func _on_parry_completed(is_success: bool):
 
 func enemy_move_to_player():
 	enemy_anim.z_index = 1  
+	
+	var move_anim = "run" if enemy_anim.sprite_frames.has_animation("run") else "walk"
+	if enemy_anim.sprite_frames.has_animation(move_anim):
+		enemy_anim.play(move_anim)
+	
 	var tween = get_tree().create_tween()
 	var offset_jarak = enemy_data.get("attack_offset", 70.0)
-	var attack_pos = Vector2(player_anim.position.x + offset_jarak, player_anim.position.y)
+	var attack_pos = Vector2(player_anim.position.x + offset_jarak, enemy_anim.position.y)
 	tween.tween_property(enemy_anim, "position", attack_pos, 0.4).set_trans(Tween.TRANS_SINE)
 	await tween.finished
+	
+	enemy_anim.play(enemy_idle_anim_name)
 
 func enemy_play_attack_anim():
 	if enemy_anim.sprite_frames.has_animation("attack"):
@@ -287,10 +325,39 @@ func enemy_play_attack_anim():
 		await bump_tween.finished
 
 func enemy_return_to_pos():
+	# 1. Tentukan animasi gerak (run/walk/fly)
+	# Bee biasanya menggunakan 'fly' sebagai animasi gerak/idlenya
+	var move_anim = "run"
+	if enemy_anim.sprite_frames.has_animation("run"):
+		move_anim = "run"
+	elif enemy_anim.sprite_frames.has_animation("fly"):
+		move_anim = "fly"
+	else:
+		move_anim = "walk"
+	
+	if enemy_anim.sprite_frames.has_animation(move_anim):
+		enemy_anim.play(move_anim)
+		
+		# 2. LOGIKA FLIP SAAT MUNDUR:
+		# Jika should_flip = true (aslinya hadap kanan), maka saat mundur flip_h harus FALSE (hadap kanan)
+		# Jika should_flip = false (aslinya hadap kiri), maka saat mundur flip_h harus TRUE (hadap kanan)
+		enemy_anim.flip_h = !enemy_data.get("should_flip", true)
+
+	# 3. Gerakan Mundur ke Posisi Awal
 	var return_tween = get_tree().create_tween()
 	return_tween.tween_property(enemy_anim, "position", original_enemy_pos, 0.4).set_trans(Tween.TRANS_SINE)
+	
+	# Tunggu sampai musuh benar-benar sampai di rumahnya
 	await return_tween.finished
+	
+	# 4. RESET SETELAH SAMPAI
 	enemy_anim.z_index = 0
+	
+	# Kembalikan arah hadap agar kembali melihat ke arah Player (Kiri)
+	# Gunakan nilai asli dari database (true untuk Bee/Nightborn)
+	enemy_anim.flip_h = enemy_data.get("should_flip", true)
+	
+	# Kembali ke animasi idle (default/fly/idle)
 	if enemy_hp > 0:
 		enemy_anim.play(enemy_idle_anim_name)
 
@@ -303,10 +370,16 @@ func finish_enemy_attack(damage_amount):
 	if player_hp < 0: player_hp = 0
 	Global.player_current_hp = player_hp
 	
-	# Update UI & Text
+	# --- UPDATE UI & TEXT ---
 	if damage_amount > 0:
-		spawn_floating_text(player_anim, str(damage_amount), Color(1, 0.5, 0))
-		question_label.text = "🛡️ MUSUH MENYERANG!\nKamu terkena %s Damage." % str(damage_amount)
+		# Tentukan warna teks: Merah jika damage > 15 (Damage Gede), Orange jika biasa
+		var dmg_color = Color(1, 0.5, 0) # Orange default
+		if damage_amount >= 15:
+			dmg_color = Color(1, 0, 0) # Merah (Damage Boss/Charge)
+			shake_screen(0.2, 8.0) # Guncangan layar lebih kuat untuk damage besar
+			
+		spawn_floating_text(player_anim, str(damage_amount), dmg_color)
+		question_label.text = "🛡️ %s MENYERANG!\nKamu terkena %s Damage." % [enemy_data.get("name", "Musuh"), str(damage_amount)]
 		await play_player_hit_effect()
 	else:
 		question_label.text = "✨ SERANGAN DITANGKIS!\nKamu tidak terkena damage."
@@ -317,7 +390,7 @@ func finish_enemy_attack(damage_amount):
 	if player_hp <= 0:
 		game_over("💀 HP HABIS!\nKamu butuh belajar lagi...")
 	else:
-		await get_tree().create_timer(1.5).timeout # Jeda sedikit sebelum giliran baru
+		await get_tree().create_timer(1.5).timeout 
 		start_new_turn()
 
 # --- UTILS LAINNYA (Tidak Berubah) ---
@@ -343,13 +416,15 @@ func increase_mana(amount):
 	Global.player_current_mana = current_mana
 	update_mana_ui()
 
+# Menambahkan parameter extra_offset_y dengan nilai default 0.0
+# Fungsi untuk memunculkan teks melayang
 func spawn_floating_text(target_node, value_text, color):
 	if floating_text_scene:
 		var text_instance = floating_text_scene.instantiate()
 		add_child(text_instance) 
-		text_instance.z_index = 100 
+		text_instance.z_index = 100 # Standar layer untuk damage
 		
-		var offset_y = -30.0 
+		var offset_y = -50.0 
 		var collision_node = target_node.get_node_or_null("CollisionShape2D")
 		if collision_node == null:
 			for child in target_node.get_children():
@@ -607,9 +682,13 @@ func run_powerup_qte_sequence():
 	powerup_hits = 0
 	Engine.time_scale = 0.2 # Slow motion dramatis
 	
+	var p_min_x = 800.0
+	var p_max_x = 1050.0
+	var p_y = 100.0 # Karena min_y dan max_y sama-sama 100
+	
 	# --- QTE 1: AREA BESAR & LOKASI KANAN-ATAS ---
 	# Offset X: +20 s/d +80 (Kanan) | Offset Y: -80 s/d -120 (Atas)
-	var pos1 = enemy_anim.global_position + Vector2(randf_range(20, 80), randf_range(-80, -120))
+	var pos1 = Vector2(randf_range(p_min_x, p_max_x), p_y)
 	
 	# Panggil dengan ukuran zone 40.0 (Besar/Mudah)
 	powerup_qte.start_powerup(pos1, 0.8, 40.0)
@@ -666,12 +745,31 @@ func execute_combo_attack(base_dmg, is_crit, anim_list):
 
 # Ganti fungsi pembantu ini jika kamu menggunakannya dalam check_answer
 func apply_hit_logic(dmg, is_crit):
-	if is_crit: dmg = int(dmg * 1.5)
+	# 1. Cek Serangan Kritikal & Break Charge
+	if is_crit: 
+		dmg = int(dmg * 1.5) # Bonus damage kritikal
+		
+		if enemy_charge_level > 0:
+			enemy_charge_level = 0 # Kekuatan boss dinetralkan
+			
+			# [FIX] Pindahkan info ke Battle Log (Kotak Pesan Tengah)
+			question_label.text = "💥 CRITICAL HIT! CHARGE %s HANCUR!!" % [enemy_data.get("name", "Musuh")]
+			
+			# Tetap berikan efek visual kilatan biru pada sprite musuh sebagai penanda
+			var break_tween = get_tree().create_tween()
+			enemy_anim.modulate = Color(0, 5, 5, 1) # Warna Cyan terang
+			break_tween.tween_property(enemy_anim, "modulate", Color(1, 1, 1, 1), 0.3)
+			
+	# 2. Update HP Musuh
 	enemy_hp = max(0, enemy_hp - dmg)
+	
+	# 3. Munculkan Angka Damage (Hanya damage yang melayang/floating)
 	spawn_floating_text(enemy_anim, str(dmg) + ("!!" if is_crit else ""), Color.RED if is_crit else Color.WHITE)
+	
+	# 4. Berikan Feedback Hit & Guncangan
 	play_enemy_hit_effect()
-	update_ui() # [FIX] Update bar HP per hit untuk serangan normal/power-up
-	shake_screen(0.1, 5.0)
+	update_ui() 
+	shake_screen(0.1, 5.0 if not is_crit else 10.0) # Layar bergetar sesuai kekuatan hit
 
 # Pengaman agar tidak stuck jika animasi gagal mencapai frame tertentu
 func wait_for_frame_safe(sprite, target):
@@ -792,8 +890,9 @@ func generate_question():
 func move_player_to_enemy():
 	player_anim.z_index = 1 
 	enemy_anim.z_index = 0  
+	var p_offset = enemy_data.get("player_attack_offset", 70.0)
 	var tween = get_tree().create_tween()
-	var target_pos = Vector2(enemy_anim.position.x - 70, enemy_anim.position.y)
+	var target_pos = Vector2(enemy_anim.position.x - p_offset, player_anim.position.y)
 	if player_anim.sprite_frames.has_animation("walk"): player_anim.play("walk")
 	tween.tween_property(player_anim, "position", target_pos, 0.5).set_trans(Tween.TRANS_SINE)
 	await tween.finished
@@ -812,6 +911,22 @@ func return_player_to_start():
 func set_buttons_enabled(enabled: bool):
 	for btn in buttons: btn.disabled = !enabled
 	if enabled: highlight_button()
+	
+func align_positions():
+	# 1. Pastikan data musuh sudah di-load agar bisa mengambil y_offset
+	if enemy_data == null or not enemy_data.has("y_offset"):
+		# Jika tidak ada offset, samakan saja Y-nya (seperti default)
+		enemy.global_position.y = player.global_position.y
+		return
+		
+	# 2. Ambil posisi Y Player sebagai patokan lantai
+	var ground_level_y = player.global_position.y
+	
+	# 3. Ambil nilai modifier dari dictionary (misal -55.0 untuk Nightborn)
+	var modifier = enemy_data.get("y_offset", 0.0)
+	
+	# 4. Terapkan posisi dengan tambahan offset
+	enemy.global_position.y = ground_level_y + modifier
 
 func win_battle():
 	Engine.time_scale = 1.0

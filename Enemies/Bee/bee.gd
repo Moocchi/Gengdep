@@ -85,10 +85,21 @@ func apply_stun(duration):
 	modulate = Color(0.5, 0.5, 0.5, 1) 
 	if has_node("Hitbox/CollisionShape2D"):
 		$Hitbox/CollisionShape2D.set_deferred("disabled", true)
+	
 	await get_tree().create_timer(duration).timeout
+	
 	is_stunned = false
 	modulate = Color(1, 1, 1, 1)
-	player = null
+	
+	# [FIX] Cek apakah Player masih ada di dalam area deteksi
+	var detection_area = get_node_or_null("Detection Area")
+	if detection_area:
+		var bodies = detection_area.get_overlapping_bodies()
+		for body in bodies:
+			if body.name == "Player":
+				player = body # Re-assign player agar langsung mengejar
+				break
+	
 	if has_node("Hitbox/CollisionShape2D"):
 		$Hitbox/CollisionShape2D.set_deferred("disabled", false)
 

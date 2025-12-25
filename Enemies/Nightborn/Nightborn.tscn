@@ -1,0 +1,51 @@
+[gd_scene load_steps=6 format=3 uid="uid://bjnrt2ouieduj"]
+
+[ext_resource type="Script" uid="uid://by60dvhtwi02r" path="res://Enemies/Nightborn/nightborn.gd" id="1_00x1j"]
+[ext_resource type="SpriteFrames" uid="uid://dgdmq74jxrh51" path="res://Enemies/Nightborn/Nightborn.tres" id="1_wbiqg"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_5tilg"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_k4hq0"]
+radius = 127.141655
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_dwxov"]
+radius = 12.0
+height = 34.0
+
+[node name="EnemyNightborn" type="CharacterBody2D"]
+script = ExtResource("1_00x1j")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+texture_filter = 1
+position = Vector2(2, -16)
+sprite_frames = ExtResource("1_wbiqg")
+animation = &"run"
+autoplay = "idle"
+offset = Vector2(-4, -8)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(2, -16.000004)
+scale = Vector2(0.91, 0.91)
+shape = SubResource("CapsuleShape2D_5tilg")
+
+[node name="Detection Area" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Detection Area"]
+shape = SubResource("CircleShape2D_k4hq0")
+
+[node name="Wander Time" type="Timer" parent="."]
+wait_time = 2.0
+autostart = true
+
+[node name="Hitbox" type="Area2D" parent="."]
+position = Vector2(1, -27)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+position = Vector2(1, 11)
+scale = Vector2(0.91, 0.91)
+shape = SubResource("CapsuleShape2D_dwxov")
+
+[connection signal="body_entered" from="Detection Area" to="." method="_on_detection_area_body_entered"]
+[connection signal="body_exited" from="Detection Area" to="." method="_on_detection_area_body_exited"]
+[connection signal="timeout" from="Wander Time" to="." method="_on_wander_time_timeout"]
+[connection signal="body_entered" from="Hitbox" to="." method="_on_hitbox_body_entered"]

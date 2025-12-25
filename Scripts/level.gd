@@ -5,6 +5,10 @@ func _ready():
 	print("--- DEBUG START ---")
 	print("Tag yang diterima: ", NavigationManager.spawn_door_tag)
 	
+	var wp = get_tree().current_scene.find_child("WorldPointer", true, false)
+	if wp:
+		wp.target = null 
+
 	if NavigationManager.spawn_door_tag != null:
 		_on_level_spawn(NavigationManager.spawn_door_tag)
 	else:

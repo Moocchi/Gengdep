@@ -1,13 +1,10 @@
-[gd_scene load_steps=11 format=3 uid="uid://dn707pc3qgodm"]
+[gd_scene load_steps=10 format=3 uid="uid://dn707pc3qgodm"]
 
 [ext_resource type="FontFile" uid="uid://dxg0puyk07c1q" path="res://Fonts/Avenixel-Regular.ttf" id="1_12f34"]
 [ext_resource type="Script" uid="uid://4p3uon117o2r" path="res://Scenes/BattleScene.gd" id="1_hip74"]
 [ext_resource type="SpriteFrames" uid="uid://bwib4kufbt3ku" path="res://Player/PlayerFrames.tres" id="2_b2eky"]
 [ext_resource type="PackedScene" uid="uid://lw3vd2kf4bdo" path="res://UI/ParryQTE.tscn" id="4_ahap6"]
 [ext_resource type="PackedScene" uid="uid://nvft4h7nad3u" path="res://UI/PowerupQte.tscn" id="5_hb1yk"]
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_b2eky"]
-animations = []
 
 [sub_resource type="Gradient" id="Gradient_b2eky"]
 offsets = PackedFloat32Array(1)
@@ -36,6 +33,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_hip74")
+metadata/_edit_horizontal_guides_ = [276.0]
 
 [node name="Background" type="TextureRect" parent="."]
 modulate = Color(0.73300546, 0.7330054, 0.7330054, 1)
@@ -95,8 +93,7 @@ autoplay = "idle"
 
 [node name="EnemyAnim" type="AnimatedSprite2D" parent="BattleArea"]
 position = Vector2(974, 42)
-sprite_frames = SubResource("SpriteFrames_b2eky")
-animation = &""
+animation = &"idle"
 
 [node name="TimerUI" type="VBoxContainer" parent="."]
 layout_mode = 1

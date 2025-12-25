@@ -1,0 +1,62 @@
+[
+	{ 
+		"q": "Apa output dari type('10')?", 
+		"a": ["int", "float", "str", "list"], 
+		"c": 2 
+	},
+	{ 
+		"q": "Cara mengambil elemen terakhir dari list L = [1, 2, 3]?", 
+		"a": ["L[0]", "L[3]", "L[-1]", "L[last]"], 
+		"c": 2 
+	},
+	{ 
+		"q": "Method untuk menambah data ke akhir sebuah list adalah?", 
+		"a": ["add()", "insert()", "append()", "extend()"], 
+		"c": 2 
+	},
+	{ 
+		"q": "Hasil dari print(10 % 3)adalah?", 
+		"a": ["1", "3", "3.33", "0"], 
+		"c": 0 
+	},
+	{ 
+		"q": "Fungsi untuk menghitung jumlah karakter di string atau panjang list?", 
+		"a": ["count()", "len()", "size()", "length()"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Apa hasil dari print(5 > 3 and 2 > 4)?", 
+		"a": ["True", "False", "Error", "None"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Simbol untuk membuat komentar satu baris di Python?", 
+		"a": ["//", "/*", "#", "--"], 
+		"c": 2 
+	},
+	{ 
+		"q": "Fungsi input() secara default menghasilkan tipe data apa?", 
+		"a": ["int", "str", "bool", "float"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Cara mendefinisikan Dictionary yang benar adalah?", 
+		"a": ["x = []", "x = ()", "x = {}", "x = <>"], 
+		"c": 2 
+	},
+	{ 
+		"q": "Jika x = 5, hasil dari x += 2 adalah?", 
+		"a": ["5", "2", "7", "Error"], 
+		"c": 2 
+	},
+	{ 
+		"q": "Manakah yang bukan merupakan tipe data di Python?", 
+		"a": ["boolean", "integer", "string", "double"], 
+		"c": 3 
+	},
+	{ 
+		"q": "Apa hasil dari 'ha' * 3?", 
+		"a": ["ha3", "hahaha", "ha ha ha", "Error"], 
+		"c": 1 
+	}
+]

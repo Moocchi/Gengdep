@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=4 uid="uid://y6sb76a3ph1w"]
+[gd_scene load_steps=27 format=4 uid="uid://y6sb76a3ph1w"]
 
 [ext_resource type="Script" uid="uid://sn4rdgl8accm" path="res://Scripts/level.gd" id="1_tq1yb"]
 [ext_resource type="Texture2D" uid="uid://bltqqeef2coil" path="res://TileSets1/Art/Ground Tileset/Tileset_Ground.png" id="1_yuq43"]
@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" uid="uid://chnecnydq2028" path="res://Player/player.tscn" id="10_seonl"]
 [ext_resource type="Texture2D" uid="uid://vr1gn0n7kij6" path="res://TileSets1/Art/Rocks/Atlas/Rocks.png" id="11_e3d7e"]
 [ext_resource type="PackedScene" uid="uid://c40uwd63eb2sd" path="res://Scenes/door.tscn" id="13_b4tl7"]
+[ext_resource type="PackedScene" uid="uid://bjnrt2ouieduj" path="res://Enemies/Nightborn/Nightborn.tscn" id="14_b4tl7"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_cp01j"]
 texture = ExtResource("1_yuq43")
@@ -4351,5 +4352,10 @@ destination_door_tag = "map3_3"
 
 [node name="Spawn" parent="Doors/door_map4" index="1"]
 position = Vector2(-41, -1.792167e-06)
+
+[node name="EnemyNightborn" parent="." instance=ExtResource("14_b4tl7")]
+position = Vector2(101, 430)
+enemy_id = "nightborn_1_1"
+friction = 100.0
 
 [editable path="Doors/door_map4"]

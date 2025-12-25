@@ -14,8 +14,8 @@ var player_damage_max = 15
 var player_crit_chance = 0.4 # 40% kesempatan critical hit
 
 #PARRY AND POWER UP CHANCE
-var player_parry_chance = 1.0 # 20% chance parry
-var player_powerup_chance = 1.0 # 50% peluang muncul jika jawaban Perfect
+var player_parry_chance = 0.2 # 20% chance parry
+var player_powerup_chance = 0.4 # 40% peluang muncul jika jawaban Perfect
 
 # --- POSISI & NAVIGASI ---
 var last_player_position = Vector2.ZERO
@@ -44,7 +44,8 @@ var enemy_database = {
 		"animation_name": "fly",
 		"should_flip": true,
 		"attack_offset": 90.0,
-		"question_file": "res://Enemies/Bee/Bee.json"
+		"question_file": "res://Enemies/Bee/Bee.json",
+		"is_boss":false
 	},
 	"slime": {
 		"name": "Slime",
@@ -56,7 +57,23 @@ var enemy_database = {
 		"animation_name": "idle",
 		"should_flip": false,
 		"attack_offset": 60.0,
-		"question_file": "res://Enemies/Slime/Slime.json"
+		"question_file": "res://Enemies/Slime/Slime.json",
+		"is_boss":false
+	},
+	"nightborn": {
+	"name": "Nightborn",
+	"hp": 250,
+	"damage_min": 10,
+	"damage_max": 15,
+	"frames": preload("res://Enemies/Nightborn/Nightborn.tres"),
+	"scale": Vector2(5, 5),
+	"animation_name": "idle",
+	"should_flip": true,
+	"player_attack_offset": 110.0, #makin gede makin jauh dari musuh
+	"attack_offset": 100.0, #makin gede makin jauh dari player
+	"y_offset": -55.0, # <--- TAMBAHKAN INI (Sesuaikan angkanya sampai pas)
+	"question_file": "res://Enemies/Nightborn/Nightborn.json",
+	"is_boss": true
 	}
 }
 
