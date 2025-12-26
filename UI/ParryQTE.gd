@@ -105,7 +105,7 @@ func _on_button_released_visual():
 func _apply_style_normal():
 	center_button.add_theme_stylebox_override("normal", style_normal)
 
-func start_qte(mouse_pos: Vector2, _unused_duration: float = 1.0):
+func start_qte(mouse_pos: Vector2, duration: float = 0.6): # Gunakan 'duration'
 	visible = true
 	base_circle.visible = true
 	center_button.visible = true
@@ -126,8 +126,12 @@ func start_qte(mouse_pos: Vector2, _unused_duration: float = 1.0):
 	if parry_tween: parry_tween.kill()
 	parry_tween = create_tween()
 	
-	var game_duration = 1.0 * Engine.time_scale 
-	parry_tween.tween_property(spinner_hand, "rotation_degrees", 360.0, game_duration).set_trans(Tween.TRANS_LINEAR)
+	# [FIX SAKTI] Baris ini akan memaksa Tween parry mengabaikan slow-mo dunia.
+	# Jika time_scale = 0.1, kita percepat tween ini 10x (1/0.1) agar terasa normal (1.0).
+	parry_tween.set_speed_scale(1.0 / Engine.time_scale) 
+	
+	# Gunakan variabel 'duration' agar kecepatannya bisa diatur dari luar (BattleScene)
+	parry_tween.tween_property(spinner_hand, "rotation_degrees", 360.0, duration).set_trans(Tween.TRANS_LINEAR)
 	
 	parry_tween.finished.connect(func():
 		if is_active: _end_qte(false)

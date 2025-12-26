@@ -93,7 +93,7 @@ autoplay = "idle"
 
 [node name="EnemyAnim" type="AnimatedSprite2D" parent="BattleArea"]
 position = Vector2(974, 42)
-animation = &"idle"
+animation = &""
 
 [node name="TimerUI" type="VBoxContainer" parent="."]
 layout_mode = 1

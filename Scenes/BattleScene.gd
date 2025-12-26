@@ -177,8 +177,8 @@ func enemy_turn():
 	
 	var is_boss = enemy_data.get("is_boss", false)
 	
-	# --- 1. LOGIKA BOSS CHARGE (Peluang 40%) ---
-	if is_boss and enemy_charge_level < 3 and randf() < 0.4:
+	# --- 1. LOGIKA BOSS CHARGE (Peluang 30%) ---
+	if is_boss and enemy_charge_level < 3 and randf() < 0.3:
 		enemy_charge_level += 1 
 		await perform_boss_charge_visual() 
 		
@@ -436,9 +436,8 @@ func spawn_floating_text(target_node, value_text, color, extra_offset_y: float =
 		add_child(text_instance)
 		text_instance.z_index = custom_z_index
 		
-		var offset_y = 0.0
+		var offset_y = -30.0 + extra_offset_y # [FIX] Tambahkan extra_offset_y sejak awal sebagai fallback
 		
-		# Pengaturan posisi Y (Vertikal)
 		if is_fast:
 			offset_y = extra_offset_y 
 		else:
@@ -455,24 +454,21 @@ func spawn_floating_text(target_node, value_text, color, extra_offset_y: float =
 				if shape is CircleShape2D: shape_height = shape.radius
 				elif shape is RectangleShape2D: shape_height = shape.size.y / 2.0
 				elif shape is CapsuleShape2D: shape_height = shape.height / 2.0
+				
+				# [FIX] Pastikan extra_offset_y ditambahkan di sini juga
 				offset_y = -(shape_height * target_node.scale.y) - 30.0 + extra_offset_y
 		
-		# [FIX] Pengaturan posisi X (Horizontal) menggunakan extra_offset_x
 		var final_x = 0.0
 		if is_fast:
-			# Jika fast mode, gunakan nilai offset manual
 			final_x = extra_offset_x
 		else:
-			# Jika normal damage, random sedikit + offset manual jika ada
 			final_x = randf_range(-20, 20) + extra_offset_x
 			
 		text_instance.global_position = target_node.global_position + Vector2(final_x, offset_y)
 		text_instance.setup(str(value_text), color)
 		
-		# --- ANIMASI TWEEN ---
 		if is_fast:
 			var t = create_tween()
-			# Durasi 0.5 detik agar tidak terlalu cepat
 			t.tween_property(text_instance, "global_position:y", text_instance.global_position.y - 80, 0.5).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 			t.parallel().tween_property(text_instance, "modulate:a", 0, 0.5)
 			t.tween_callback(text_instance.queue_free)
@@ -648,22 +644,33 @@ func check_answer(btn_index):
 		var raw_damage = randi_range(damage_min, damage_max)
 		
 		# --- LOGIKA POWER-UP ATTACK (Perfect Answer > 6s) ---
-		var p_chance = 0.5 # Peluang 50%, sesuaikan dengan Global.player_powerup_chance jika ada
+		var p_chance = 0.5 
 		if "player_powerup_chance" in Global: p_chance = Global.player_powerup_chance
 		
 		if current_time > 6.0 and randf() < p_chance:
-			# 1. Jalankan urutan QTE (Fungsi ini harus ada di script)
+			# 1. Jalankan urutan QTE
 			await run_powerup_qte_sequence()
 			
+			# [FIX] Tentukan offset Y secara dinamis hanya untuk Boss
+			var powerup_offset_y = 0.0
+			if enemy_data.get("is_boss", false):
+				# Jika musuh berbadan besar (Nightborn), tarik teks ke atas lebih jauh (-160)
+				powerup_offset_y = -40.0 
+			else:
+				# Jika musuh kecil (Bee/Slime), gunakan offset standar (0)
+				powerup_offset_y = 0.0
+
 			# 2. Tentukan aksi berdasarkan jumlah hits sukses
 			if powerup_hits == 2:
 				question_label.text = "🔥 FULL POWER COMBO!! 🔥"
-				spawn_floating_text(player_anim, "POWER UP!!", Color.RED) # Merah jika 2 hit
+				# Gunakan powerup_offset_y yang sudah kita hitung di atas
+				spawn_floating_text(player_anim, "POWER UP!!", Color.RED, powerup_offset_y)
 				await execute_combo_attack(raw_damage, is_critical, ["attack_2", "attack_1", "attack_3"])
 				
 			elif powerup_hits == 1:
 				question_label.text = "⚡ POWER UP ATTACK! ⚡"
-				spawn_floating_text(player_anim, "POWER UP!", Color.YELLOW) # Kuning jika 1 hit
+				# Gunakan powerup_offset_y yang sama
+				spawn_floating_text(player_anim, "POWER UP!", Color.YELLOW, powerup_offset_y)
 				await execute_combo_attack(raw_damage, is_critical, ["attack_2", "attack_1"])
 				
 			else:
@@ -706,7 +713,6 @@ func check_answer(btn_index):
 	
 	await get_tree().create_timer(0.5).timeout
 	enemy_turn()
-
 # Menjalankan 2 QTE berurutan di atas musuh
 func run_powerup_qte_sequence():
 	powerup_hits = 0
