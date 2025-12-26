@@ -176,43 +176,54 @@ func enemy_turn():
 	if not battle_active: return
 	
 	var is_boss = enemy_data.get("is_boss", false)
-	var damage_multiplier = 1.0
 	
-	# --- LOGIKA BOSS CHARGE ---
-	# Syarat: Harus Boss, Level Charge kurang dari 3, dan peluang 40% (bisa diatur)
+	# --- 1. LOGIKA BOSS CHARGE (Peluang 40%) ---
 	if is_boss and enemy_charge_level < 3 and randf() < 0.4:
-		enemy_charge_level = min(enemy_charge_level + 1, 3) 
+		enemy_charge_level += 1 
 		await perform_boss_charge_visual() 
 		
-		question_label.text = "⚠️ %s MENGUMPULKAN ENERGI!\n(Level %d / 3)" % [enemy_data["name"], enemy_charge_level]
-		await get_tree().create_timer(1.0).timeout
+		# [FIX] Pengecekan Khusus Jika Stack Mencapai Maksimal (3)
+		if enemy_charge_level == 3:
+			# Mengubah warna teks menjadi merah untuk peringatan bahaya
+			question_label.modulate = Color(1, 1, 1) 
+			question_label.text = "🛑 WARNING !! FULL STACK REACHED\nDAMAGE MULTIPLY BY 3.5"
+		else:
+			question_label.modulate = Color(1, 1, 1) # Putih normal
+			question_label.text = "⚠️ %s MENGUMPULKAN STACK!\n(STACK %d / 3)" % [enemy_data["name"], enemy_charge_level]
+		
+		# Beri jeda 1.5 detik agar pemain sempat membaca peringatan bahaya
+		await get_tree().create_timer(1.5).timeout
+		question_label.modulate = Color(1, 1, 1) # Reset warna ke putih normal
+		
+		start_new_turn() # Selesai giliran dan kembali ke Player
+		return
+
+	# --- 2. LOGIKA MENYERANG (Multiplier Berdasarkan Stack) ---
+	var damage_multiplier = 1.0
+	if enemy_charge_level == 1: 
+		damage_multiplier = 1.5
+	elif enemy_charge_level == 2: 
+		damage_multiplier = 3.0
+	elif enemy_charge_level == 3: 
+		damage_multiplier = 3.5 # Damage maksimal saat full stack
 	
-	# Setting Multiplier agar lebih terasa (Skala: x2, x4, x6)
-	if enemy_charge_level == 1: damage_multiplier = 2.0
-	elif enemy_charge_level == 2: damage_multiplier = 4.0
-	elif enemy_charge_level == 3: damage_multiplier = 6.0
-	
-	# 1. Musuh MAJU ke depan Player
 	await enemy_move_to_player()
 	
-	# 2. Cek Kesempatan Parry
 	var roll = randf()
 	if roll < Global.player_parry_chance:
 		Engine.time_scale = 0.1 
-		var spawn_pos = Vector2(randf_range(300.0, 450.0), 100.0) #
+		var spawn_pos = Vector2(randf_range(300.0, 450.0), 100.0)
 		parry_qte_system.start_qte(spawn_pos, 0.6)
 		return
 	else:
-		# --- NORMAL HIT ---
 		await enemy_play_attack_anim()
 		
-		var min_dmg = enemy_data.get("damage_min", 1)
-		var max_dmg = enemy_data.get("damage_max", 5)
+		# Base Attack Nightborn 10-15
+		var min_dmg = enemy_data.get("damage_min", 10)
+		var max_dmg = enemy_data.get("damage_max", 15)
 		var final_damage = int(randi_range(min_dmg, max_dmg) * damage_multiplier)
 		
-		# Reset charge setelah menyerang agar tidak kena damage tinggi terus-menerus
-		if enemy_charge_level > 0:
-			enemy_charge_level = 0 
+		# Sesuai permintaanmu: Reset charge hanya terjadi di apply_hit_logic lewat Critical
 		
 		finish_enemy_attack(final_damage)
 		await enemy_return_to_pos()
@@ -418,31 +429,53 @@ func increase_mana(amount):
 
 # Menambahkan parameter extra_offset_y dengan nilai default 0.0
 # Fungsi untuk memunculkan teks melayang
-func spawn_floating_text(target_node, value_text, color):
+# [FIX] Tambahkan parameter extra_offset_x dengan default 0.0
+func spawn_floating_text(target_node, value_text, color, extra_offset_y: float = 0.0, extra_offset_x: float = 0.0, custom_z_index: int = 100, is_fast: bool = false):
 	if floating_text_scene:
 		var text_instance = floating_text_scene.instantiate()
-		add_child(text_instance) 
-		text_instance.z_index = 100 # Standar layer untuk damage
+		add_child(text_instance)
+		text_instance.z_index = custom_z_index
 		
-		var offset_y = -50.0 
-		var collision_node = target_node.get_node_or_null("CollisionShape2D")
-		if collision_node == null:
-			for child in target_node.get_children():
-				if child is CollisionShape2D:
-					collision_node = child
-					break
+		var offset_y = 0.0
 		
-		if collision_node and collision_node.shape:
-			var shape = collision_node.shape
-			var shape_height = 0.0
-			if shape is CircleShape2D: shape_height = shape.radius
-			elif shape is RectangleShape2D: shape_height = shape.size.y / 2.0
-			elif shape is CapsuleShape2D: shape_height = shape.height / 2.0
-			offset_y = -(shape_height * target_node.scale.y) - 30.0
+		# Pengaturan posisi Y (Vertikal)
+		if is_fast:
+			offset_y = extra_offset_y 
+		else:
+			var collision_node = target_node.get_node_or_null("CollisionShape2D")
+			if collision_node == null:
+				for child in target_node.get_children():
+					if child is CollisionShape2D:
+						collision_node = child
+						break
 			
-		var random_x = randf_range(-20, 20)
-		text_instance.global_position = target_node.global_position + Vector2(random_x, offset_y)
+			if collision_node and collision_node.shape:
+				var shape = collision_node.shape
+				var shape_height = 0.0
+				if shape is CircleShape2D: shape_height = shape.radius
+				elif shape is RectangleShape2D: shape_height = shape.size.y / 2.0
+				elif shape is CapsuleShape2D: shape_height = shape.height / 2.0
+				offset_y = -(shape_height * target_node.scale.y) - 30.0 + extra_offset_y
+		
+		# [FIX] Pengaturan posisi X (Horizontal) menggunakan extra_offset_x
+		var final_x = 0.0
+		if is_fast:
+			# Jika fast mode, gunakan nilai offset manual
+			final_x = extra_offset_x
+		else:
+			# Jika normal damage, random sedikit + offset manual jika ada
+			final_x = randf_range(-20, 20) + extra_offset_x
+			
+		text_instance.global_position = target_node.global_position + Vector2(final_x, offset_y)
 		text_instance.setup(str(value_text), color)
+		
+		# --- ANIMASI TWEEN ---
+		if is_fast:
+			var t = create_tween()
+			# Durasi 0.5 detik agar tidak terlalu cepat
+			t.tween_property(text_instance, "global_position:y", text_instance.global_position.y - 80, 0.5).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+			t.parallel().tween_property(text_instance, "modulate:a", 0, 0.5)
+			t.tween_callback(text_instance.queue_free)
 
 func wait_for_frame(anim_sprite, target_frame):
 	var safety_timer = 0.0
@@ -494,17 +527,20 @@ func shake_screen(duration, intensity):
 # --- ULTIMATE & ATTACK LOGIC ---
 
 func perform_ultimate():
+	# 1. Validasi Awal & Konsumsi Resource
 	if current_mana < max_mana or is_waiting_next_turn or not battle_active:
 		return
 	
 	set_buttons_enabled(false)
 	is_waiting_next_turn = true
 	
+	# Reset Mana
 	ult_progress.modulate = Color(1, 1, 1) 
 	current_mana = 0
 	Global.player_current_mana = 0
 	update_mana_ui()
 	
+	# 2. Intro Animasi
 	question_label.text = "⚡ ULTIMATE COMBO! ⚡"
 	
 	if player_anim.sprite_frames.has_animation("emote"):
@@ -512,8 +548,9 @@ func perform_ultimate():
 		await player_anim.animation_finished
 	
 	await move_player_to_enemy()
-	player_anim.modulate = Color(2, 0.5, 0.5) 
+	player_anim.modulate = Color(2, 0.5, 0.5) # Efek Aura Merah
 	
+	# 3. Multi-Hit Combo (10 Tebasan Cepat)
 	var slash_count = 10 
 	var initial_speed = 1.5
 	
@@ -521,9 +558,10 @@ func perform_ultimate():
 		if player_anim.sprite_frames.has_animation("attack_2"):
 			player_anim.frame = 0 
 			player_anim.play("attack_2")
+			# Semakin lama semakin cepat
 			player_anim.speed_scale = initial_speed + (i * 0.3)
 			
-			# Slash Pertama (Frame 2)
+			# Tebasan Pertama (Frame 2)
 			await wait_for_frame(player_anim, 2)
 			shake_screen(0.1, 1.0 + i)
 			play_enemy_hit_effect()
@@ -531,14 +569,14 @@ func perform_ultimate():
 			var slash_dmg = randi_range(1, 5)
 			enemy_hp -= slash_dmg
 			spawn_floating_text(enemy_anim, str(slash_dmg), Color(1, 0, 0))
-			update_ui() # [FIX] Darah berkurang seketika di tebasan 1
+			update_ui() 
 			
-			# Slash Kedua (Frame 5)
+			# Tebasan Kedua (Frame 5)
 			await wait_for_frame(player_anim, 5)
 			var slash_dmg_2 = randi_range(1, 5)
 			enemy_hp -= slash_dmg_2
 			spawn_floating_text(enemy_anim, str(slash_dmg_2), Color(1, 0, 0))
-			update_ui() # [FIX] Darah berkurang seketika di tebasan 2
+			update_ui() 
 			
 			if i < slash_count - 1:
 				await get_tree().process_frame
@@ -547,6 +585,7 @@ func perform_ultimate():
 		else:
 			await get_tree().create_timer(0.05).timeout
 	
+	# 4. Final Blow (Serangan Penutup)
 	player_anim.speed_scale = 1.0 
 	
 	if player_anim.sprite_frames.has_animation("attack_3"):
@@ -556,28 +595,22 @@ func perform_ultimate():
 	else:
 		player_anim.play("attack_1")
 	
+	# Efek Slow Motion Dramatis
 	Engine.time_scale = 0.3 
 	shake_screen(0.6, 15.0)
-	play_enemy_hit_effect() 
 	
+	# Kalkulasi Damage Akhir
 	var base_ult_dmg = Global.player_damage_max * 5
 	var is_crit_final = randf() < Global.player_crit_chance
-	var final_damage = base_ult_dmg
-	var final_text = str(final_damage)
 	
-	if is_crit_final:
-		final_damage = int(final_damage * 1.5)
-		final_text = str(final_damage) + "!!"
+	# [FIX] Gunakan apply_hit_logic agar memicu WEAKENED! jika crit
+	apply_hit_logic(base_ult_dmg, is_crit_final)
 	
-	enemy_hp -= final_damage
-	if enemy_hp < 0: enemy_hp = 0
-	
-	spawn_floating_text(enemy_anim, final_text, Color(1, 0, 0)) 
-	update_ui() # [FIX] Update untuk serangan final
-	
+	# Jeda sedikit dalam slow-mo sebelum kembali normal
 	await get_tree().create_timer(0.15).timeout 
 	Engine.time_scale = 1.0
 	
+	# 5. Cleanup & Selesai Turn
 	await player_anim.animation_finished
 	player_anim.modulate = Color(1, 1, 1)
 	
@@ -587,13 +620,10 @@ func perform_ultimate():
 	
 	if enemy_hp > 0:
 		enemy_anim.play(enemy_idle_anim_name)
-	
-	if enemy_hp <= 0:
+		await get_tree().create_timer(1.0).timeout
+		enemy_turn()
+	else:
 		win_battle()
-		return
-	
-	await get_tree().create_timer(1.0).timeout
-	enemy_turn()
 
 func check_answer(btn_index):
 	# [FIX] Tambahkan pengecekan is_performing_action agar tidak double input
@@ -744,32 +774,35 @@ func execute_combo_attack(base_dmg, is_crit, anim_list):
 		await player_anim.animation_finished
 
 # Ganti fungsi pembantu ini jika kamu menggunakannya dalam check_answer
+# Ganti fungsi pembantu ini jika kamu menggunakannya dalam check_answer
 func apply_hit_logic(dmg, is_crit):
-	# 1. Cek Serangan Kritikal & Break Charge
 	if is_crit: 
-		dmg = int(dmg * 1.5) # Bonus damage kritikal
+		dmg = int(dmg * 1.5)
 		
+		# --- LOGIKA BREAK CHARGE (SEMUA JENIS ATTACK) ---
 		if enemy_charge_level > 0:
-			enemy_charge_level = 0 # Kekuatan boss dinetralkan
+			enemy_charge_level = 0 
 			
-			# [FIX] Pindahkan info ke Battle Log (Kotak Pesan Tengah)
-			question_label.text = "💥 CRITICAL HIT! CHARGE %s HANCUR!!" % [enemy_data.get("name", "Musuh")]
+			# [FIX] Panggil dengan offset X -20.0 agar geser ke kiri
+			# Urutan: target, teks, warna, off_y, OFF_X, z_index, is_fast
+			spawn_floating_text(enemy_anim, "WEAKENED!", Color.CYAN, 0.0, -60.0, 200, true)
 			
-			# Tetap berikan efek visual kilatan biru pada sprite musuh sebagai penanda
+			# Info di Battle Log
+			question_label.text = "💥 CRITICAL HIT! STACK %s RESET!!" % [enemy_data.get("name", "Musuh")]
+			
+			# Efek visual kilatan biru
 			var break_tween = get_tree().create_tween()
-			enemy_anim.modulate = Color(0, 5, 5, 1) # Warna Cyan terang
+			enemy_anim.modulate = Color(0, 5, 5, 1) 
 			break_tween.tween_property(enemy_anim, "modulate", Color(1, 1, 1, 1), 0.3)
 			
-	# 2. Update HP Musuh
 	enemy_hp = max(0, enemy_hp - dmg)
 	
-	# 3. Munculkan Angka Damage (Hanya damage yang melayang/floating)
+	# Munculkan Angka Damage Normal (Offset X default 0)
 	spawn_floating_text(enemy_anim, str(dmg) + ("!!" if is_crit else ""), Color.RED if is_crit else Color.WHITE)
 	
-	# 4. Berikan Feedback Hit & Guncangan
 	play_enemy_hit_effect()
 	update_ui() 
-	shake_screen(0.1, 5.0 if not is_crit else 10.0) # Layar bergetar sesuai kekuatan hit
+	shake_screen(0.1, 5.0 if not is_crit else 10.0)
 
 # Pengaman agar tidak stuck jika animasi gagal mencapai frame tertentu
 func wait_for_frame_safe(sprite, target):
