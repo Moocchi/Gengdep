@@ -1,0 +1,52 @@
+[
+	{
+		"q": "Apa hasil dari len({1: 'a', True: 'b', 1.0: 'c'})?",
+		"a": ["1", "2", "3", "Error"],
+		"c": 0
+	},
+	{
+		"q": "Hasil dari [x * y for x in [1, 2] for y in [10, 20]] adalah?",
+		"a": ["[10, 20, 20, 40]", "[[10, 20], [20, 40]]", "[11, 21, 12, 22]", "[10, 40]"],
+		"c": 0
+	},
+	{
+		"q": "Apa perbedaan utama antara operator 'is' dan '=='?",
+		"a": ["is cek nilai, == cek identitas", "is cek identitas, == cek nilai", "Keduanya sama saja", "is hanya untuk tipe data string"],
+		"c": 1
+	},
+	{
+		"q": "a = [1, 2, 3]; b = a; a.append(4). Apa isi dari variabel b?",
+		"a": ["[1, 2, 3]", "[1, 2, 3, 4]", "Error", "[1, 2, 3, [4]]"],
+		"c": 1
+	},
+	{
+		"q": "Manakah cara menangkap semua keyword arguments (kamus) dalam fungsi?",
+		"a": ["*args", "**kwargs", "*kwargs", "&args"],
+		"c": 1
+	},
+	{
+		"q": "Apa kegunaan utama dari fungsi zip()?",
+		"a": ["Menggabungkan list secara linear", "Membuat iterator pasangan elemen", "Mengompres ukuran file", "Mengurutkan data secara alfabetis"],
+		"c": 1
+	},
+	{
+		"q": "Apa hasil dari print(type(lambda x: x))?",
+		"a": ["<class 'function'>", "<class 'lambda'>", "<class 'object'>", "<class 'type'>"],
+		"c": 0
+	},
+	{
+		"q": "Kapan blok 'finally' dalam try-except akan dieksekusi?",
+		"a": ["Hanya jika terjadi error", "Hanya jika tidak ada error", "Selalu dijalankan", "Hanya jika fungsi return None"],
+		"c": 2
+	},
+	{
+		"q": "Kata kunci 'yield' digunakan untuk membuat apa?",
+		"a": ["Konstanta", "Generator", "Loop tak terbatas", "Modul eksternal"],
+		"c": 1
+	},
+	{
+		"q": "Hasil dari print('abcde'[::-1]) adalah?",
+		"a": ["abcde", "edcba", "a", "e"],
+		"c": 1
+	}
+]

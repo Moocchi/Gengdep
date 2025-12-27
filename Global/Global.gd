@@ -62,7 +62,7 @@ var enemy_database = {
 	},
 	"nightborn": {
 	"name": "Nightborn",
-	"hp": 250,
+	"hp": 150,
 	"damage_min": 10,
 	"damage_max": 15,
 	"frames": preload("res://Enemies/Nightborn/Nightborn.tres"),
@@ -74,6 +74,33 @@ var enemy_database = {
 	"y_offset": -55.0, # <--- TAMBAHKAN INI (Sesuaikan angkanya sampai pas)
 	"question_file": "res://Enemies/Nightborn/Nightborn.json",
 	"is_boss": true
+	},
+	"soul_harbinger": {
+	"name": "Soul Harbinger",
+	"hp": 10, # Darah Phase 1
+	"damage_min": 15,
+	"damage_max": 25,
+	"frames": preload("res://Enemies/SoulHarbinger/SoulHarbinger.tres"),
+	"scale": Vector2(4, 4), 
+	"animation_name": "idle",
+	"should_flip": true,
+	"is_boss": true,
+	"y_offset": -30.0,
+	"player_attack_offset": 120.0,
+	"attack_offset": 100.0,
+	"max_charge": 5,
+	"summon_scale": Vector2(0.2, 0.2),
+	"max_summons": 5,
+	
+	# --- SISTEM SOAL DINAMIS ---
+	"question_file": "res://Enemies/SoulHarbinger/SoulHarbinger.json", # Soal Phase 1 (Normal)
+	"phase_two_question_file": "res://Enemies/SoulHarbinger/PhaseTwo.json", # <--- TAMBAHKAN INI (Soal Lebih Sulit)
+	
+	# --- LOGIKA REVIVE PHASE 2 ---
+	"has_phase_two": true,
+	"is_phase_2": false,
+	"phase_two_hp": 150, 
+	"phase_two_bonus_atk": 3 
 	}
 }
 

@@ -47,6 +47,7 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="TopBar" type="HBoxContainer" parent="."]
+z_index = 10
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -146,6 +147,7 @@ theme_override_font_sizes/font_size = 23
 text = "Pertanyaan akan muncul di sini..."
 horizontal_alignment = 1
 vertical_alignment = 1
+autowrap_mode = 3
 
 [node name="ButtonsGrid" type="GridContainer" parent="ActionPanel"]
 layout_mode = 2
@@ -212,6 +214,7 @@ theme_override_fonts/font = ExtResource("1_12f34")
 text = "exit"
 
 [node name="ParryQTE" parent="." instance=ExtResource("4_ahap6")]
+z_index = 5
 layout_mode = 1
 offset_left = 440.0
 offset_top = 199.0
@@ -220,6 +223,7 @@ offset_bottom = -399.0
 pivot_offset = Vector2(25, 25)
 
 [node name="PowerupQTE" parent="." instance=ExtResource("5_hb1yk")]
+z_index = 5
 layout_mode = 1
 offset_left = 518.0
 offset_top = 199.0

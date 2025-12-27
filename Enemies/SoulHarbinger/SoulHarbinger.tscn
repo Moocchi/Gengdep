@@ -1,7 +1,7 @@
-[gd_scene load_steps=6 format=3 uid="uid://bjnrt2ouieduj"]
+[gd_scene load_steps=6 format=3 uid="uid://dojblxg1uvuww"]
 
-[ext_resource type="Script" uid="uid://by60dvhtwi02r" path="res://Enemies/Nightborn/nightborn.gd" id="1_00x1j"]
-[ext_resource type="SpriteFrames" uid="uid://dgdmq74jxrh51" path="res://Enemies/Nightborn/Nightborn.tres" id="1_wbiqg"]
+[ext_resource type="Script" uid="uid://ba0eeb3xsp7bg" path="res://Enemies/SoulHarbinger/soulharbinger.gd" id="1_sx57a"]
+[ext_resource type="SpriteFrames" uid="uid://d2vigstrnxj3t" path="res://Enemies/SoulHarbinger/SoulHarbinger.tres" id="2_khyqk"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_5tilg"]
 height = 61.53846
@@ -13,19 +13,18 @@ radius = 209.28928
 radius = 12.0
 height = 63.73626
 
-[node name="EnemyNightborn" type="CharacterBody2D"]
-script = ExtResource("1_00x1j")
+[node name="EnemySoulHarbringer" type="CharacterBody2D"]
+script = ExtResource("1_sx57a")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 texture_filter = 1
-position = Vector2(2, -16)
-sprite_frames = ExtResource("1_wbiqg")
-animation = &"run"
+position = Vector2(6, -16)
+sprite_frames = ExtResource("2_khyqk")
+animation = &"idle"
 autoplay = "idle"
-offset = Vector2(-4, -8)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(2, -16.000004)
+position = Vector2(2, -13.000002)
 scale = Vector2(0.91, 0.91)
 shape = SubResource("CapsuleShape2D_5tilg")
 
@@ -42,7 +41,7 @@ autostart = true
 position = Vector2(1, -27)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
-position = Vector2(1, 11)
+position = Vector2(1, 14)
 scale = Vector2(0.91, 0.91)
 shape = SubResource("CapsuleShape2D_dwxov")
 

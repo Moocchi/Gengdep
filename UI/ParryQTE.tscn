@@ -78,7 +78,7 @@ grow_horizontal = 2
 grow_vertical = 2
 rotation = -6.28318
 pivot_offset = Vector2(35, 35)
-value = 10.0
+value = 20.0
 fill_mode = 4
 texture_progress = ExtResource("2_da5ao")
 
@@ -132,6 +132,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="SuccessRipple" type="TextureRect" parent="QTEContainer"]
+visible = false
 layout_mode = 0
 offset_left = -35.0
 offset_top = -35.0

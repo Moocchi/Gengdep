@@ -1,0 +1,52 @@
+[
+	{ 
+		"q": "Apa hasil dari print('python'[1:4])?", 
+		"a": ["pyt", "yth", "ytho", "pyth"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Jika L = [10, 20, 30], apa hasil dari L.pop(1)?", 
+		"a": ["10", "20", "30", "[10, 30]"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Output dari print(list(range(1, 5))) adalah?", 
+		"a": ["[1, 2, 3, 4, 5]", "[0, 1, 2, 3, 4]", "[1, 2, 3, 4]", "[1, 5]"], 
+		"c": 2 
+	},
+	{ 
+		"q": "Operator mana yang digunakan untuk pangkat (eksponen)?", 
+		"a": ["^", "**", "//", "exp()"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Apa hasil dari 10 // 3?", 
+		"a": ["3.33", "3", "1", "0"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Method untuk mengubah semua huruf menjadi besar (kapital) adalah?", 
+		"a": ["upper()", "capitalize()", "large()", "upperCase()"], 
+		"c": 0 
+	},
+	{ 
+		"q": "Apa hasil dari bool([])?", 
+		"a": ["True", "False", "None", "Error"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Manakah cara yang benar untuk memeriksa apakah 'a' ada di dalam list L?", 
+		"a": ["L.has('a')", "if 'a' in L:", "if 'a' exist L:", "L.find('a')"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Hasil dari print(3 * '2') adalah?", 
+		"a": ["6", "222", "33", "Error"], 
+		"c": 1 
+	},
+	{ 
+		"q": "Untuk mengurutkan list L secara permanen, kita menggunakan?", 
+		"a": ["sorted(L)", "L.sort()", "L.order()", "L.arrange()"], 
+		"c": 1 
+	}
+]
