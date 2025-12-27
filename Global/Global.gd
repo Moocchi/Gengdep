@@ -11,7 +11,7 @@ var player_current_mana = 0
 # [BARU] Status Damage Player
 var player_damage_min = 10
 var player_damage_max = 15
-var player_crit_chance = 0.4 # 40% kesempatan critical hit
+var player_crit_chance = 1.0 # 40% kesempatan critical hit
 
 #PARRY AND POWER UP CHANCE
 var player_parry_chance = 1.0 # 20% chance parry
@@ -78,7 +78,7 @@ var enemy_database = {
 	"soul_harbinger": {
 	"name": "Soul Harbinger",
 	"hp": 10, # Darah Phase 1
-	"damage_min": 15,
+	"damage_min": 10,
 	"damage_max": 25,
 	"frames": preload("res://Enemies/SoulHarbinger/SoulHarbinger.tres"),
 	"scale": Vector2(4, 4), 
@@ -99,7 +99,7 @@ var enemy_database = {
 	# --- LOGIKA REVIVE PHASE 2 ---
 	"has_phase_two": true,
 	"is_phase_2": false,
-	"phase_two_hp": 150, 
+	"phase_two_hp": 300, 
 	"phase_two_bonus_atk": 3 
 	}
 }

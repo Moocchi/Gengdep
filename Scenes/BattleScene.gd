@@ -179,10 +179,9 @@ func handle_timeout():
 
 func enemy_turn():
 	if not battle_active: return
-	
 	var enemy_name = enemy_data.get("name", "")
 
-	# --- 1. KHUSUS HARBINGER (Hanya Summon, Tidak Charge) ---
+	# --- 1. LOGIKA KHUSUS SOUL HARBINGER ---
 	if enemy_name == "Soul Harbinger":
 		if enemy_data.get("is_phase_2", false):
 			if active_summons.size() < max_summons:
@@ -194,20 +193,23 @@ func enemy_turn():
 				await perform_soul_barrage_attack()
 				start_new_turn()
 				return
-		else:
-			# Jika Harbinger Phase 1, dia langsung menyerang biasa, tidak charge
-			pass 
+		
+		var final_damage = randi_range(enemy_data["damage_min"], enemy_data["damage_max"])
+		await enemy_move_to_player()
+		await execute_harbinger_attack_sequence(final_damage)
+		await enemy_return_to_pos()
+		start_new_turn()
+		return
 
-	# --- 2. KHUSUS BOSS LAIN / NIGHTBORN (Hanya Charge, Tidak Summon) ---
+	# --- 2. LOGIKA KHUSUS NIGHTBORN / BOSS LAIN (Sistem Charge) ---
 	var is_boss = enemy_data.get("is_boss", false)
-	# Tambahkan syarat: Hanya Charge jika BUKAN Harbinger
-	if is_boss and enemy_name != "Soul Harbinger" and enemy_charge_level < max_enemy_charge:
-		if randf() < 0.3:
+	if is_boss and enemy_charge_level < max_enemy_charge:
+		if randf() < 0.5: 
 			enemy_charge_level += 1 
 			await perform_boss_charge_visual() 
 			
 			if enemy_charge_level == max_enemy_charge:
-				question_label.text = "🛑 WARNING !! FULL STACK REACHED"
+				question_label.text = "🛑 WARNING !! FULL STACK REACHED\nDAMAGE MULTIPLY BY 3.5"
 			else:
 				question_label.text = "⚠️ %s MENGUMPULKAN STACK! (%d/%d)" % [enemy_name, enemy_charge_level, max_enemy_charge]
 			
@@ -215,7 +217,7 @@ func enemy_turn():
 			start_new_turn()
 			return
 
-	# Logika Menyerang Standar [cite: 6, 7]
+	# --- 3. PERHITUNGAN DAMAGE MULTIPLIER ---
 	var damage_multiplier = 1.0
 	if enemy_charge_level == 1: damage_multiplier = 1.5
 	elif enemy_charge_level == 2: damage_multiplier = 3.0
@@ -228,27 +230,11 @@ func enemy_turn():
 		Engine.time_scale = 0.1 
 		var spawn_pos = Vector2(randf_range(300.0, 450.0), 100.0)
 		parry_qte_system.start_qte(spawn_pos, 0.6)
-		return
 	else:
-		var min_dmg = enemy_data.get("damage_min", 10)
-		var max_dmg = enemy_data.get("damage_max", 15)
-		var final_damage = int(randi_range(min_dmg, max_dmg) * damage_multiplier)
-		
-		# [FIX] Jalankan sequence dan panggil start_new_turn agar tidak stuck 
-		if enemy_data.get("name") == "Soul Harbinger":
-			await execute_harbinger_attack_sequence(final_damage)
-			await enemy_return_to_pos()
-			
-			if player_hp <= 0:
-				game_over("💀 HP HABIS!\nKamu butuh belajar lagi...")
-			else:
-				# Jeda sedikit agar log damage total sempat terbaca oleh pemain [cite: 13, 30]
-				await get_tree().create_timer(1.0).timeout
-				start_new_turn()
-		else:
-			await enemy_play_attack_anim()
-			finish_enemy_attack(final_damage) # finish_enemy_attack mengurus timer dan start_new_turn 
-			await enemy_return_to_pos()
+		var final_damage = int(randi_range(enemy_data["damage_min"], enemy_data["damage_max"]) * damage_multiplier)
+		await enemy_play_attack_anim()
+		finish_enemy_attack(final_damage)
+		await enemy_return_to_pos()
 
 func perform_boss_charge_visual():
 	# 1. Mainkan animasi charge sampai selesai
@@ -273,16 +259,17 @@ func perform_boss_charge_visual():
 # Fungsi Callback saat Parry Selesai (Sukses/Gagal)
 func _on_parry_completed(is_success: bool):
 	Engine.time_scale = 1.0 
+	var enemy_name = enemy_data.get("name", "")
 	
 	if is_success:
-		# --- PARRY SUKSES --- [cite: 8]
+		# --- PARRY SUKSES ---
 		if player_anim.sprite_frames.has_animation("block"):
 			player_anim.play("block")
 		elif player_anim.sprite_frames.has_animation("parry"):
 			player_anim.play("parry")
 		
-		# [FIX] Harbinger tetap mengayunkan sabit (damage 0) agar tidak 'menyodok' 
-		if enemy_data.get("name") == "Soul Harbinger":
+		# Harbinger tetap mengayunkan sabit (damage 0) agar visual pas
+		if enemy_name == "Soul Harbinger":
 			await execute_harbinger_attack_sequence(0)
 		else:
 			await enemy_play_attack_anim()
@@ -300,30 +287,39 @@ func _on_parry_completed(is_success: bool):
 		
 		await enemy_return_to_pos()
 		
-		# [FIX] Mulai turn baru khusus untuk jalur Harbinger 
-		if enemy_data.get("name") == "Soul Harbinger":
+		if enemy_name == "Soul Harbinger":
 			start_new_turn()
 		
 	else:
-		# --- PARRY GAGAL --- [cite: 9]
+		# --- PARRY GAGAL (MODIFIKASI DAMAGE DISINI) ---
 		spawn_floating_text(player_anim, "PARRY FAILED", Color(1.0, 0.0, 0.0, 1.0))
 		await get_tree().create_timer(0.4).timeout
 		
-		var min_dmg = enemy_data.get("damage_min", 1)
-		var max_dmg = enemy_data.get("damage_max", 5)
-		var damage = randi_range(min_dmg, max_dmg)
+		# Hitung pengali berdasarkan stack saat ini agar damage x10 tetap terasa
+		var multiplier = 1.0
+		if enemy_charge_level == 1: multiplier = 1.5
+		elif enemy_charge_level == 2: multiplier = 3.0
+		elif enemy_charge_level == 3: multiplier = 3.5
 		
-		# [FIX] Gunakan sequence sabit untuk Harbinger agar tidak 'menyodok' 
-		if enemy_data.get("name") == "Soul Harbinger":
-			await execute_harbinger_attack_sequence(damage)
+		# Ambil damage asli musuh dari database
+		var min_dmg = enemy_data.get("damage_min", 10)
+		var max_dmg = enemy_data.get("damage_max", 15)
+		var final_damage = int(randi_range(min_dmg, max_dmg) * multiplier)
+		
+		if enemy_name == "Soul Harbinger":
+			await execute_harbinger_attack_sequence(final_damage)
 			await enemy_return_to_pos()
 			if player_hp <= 0:
 				game_over("💀 HP HABIS!")
 			else:
 				start_new_turn()
 		else:
+			# Beri peringatan di log jika kena damage besar akibat gagal parry
+			if multiplier >= 3.0:
+				question_label.text = "💥 GAGAL PARRY! (x%.1f DAMAGE!)" % multiplier
+				
 			await enemy_play_attack_anim()
-			finish_enemy_attack(damage)
+			finish_enemy_attack(final_damage)
 			await enemy_return_to_pos()
 
 # --- Helper Functions untuk Animasi Musuh yang Dipecah ---
@@ -462,21 +458,24 @@ func finish_enemy_attack(damage_amount):
 	
 	# --- UPDATE UI & TEXT ---
 	if damage_amount > 0:
-		# Tentukan warna teks: Merah jika damage > 15 (Damage Gede), Orange jika biasa
 		var dmg_color = Color(1, 0.5, 0) # Orange default
-		if damage_amount >= 15:
-			dmg_color = Color(1, 0, 0) # Merah (Damage Boss/Charge)
-			shake_screen(0.2, 8.0) # Guncangan layar lebih kuat untuk damage besar
+		
+		# Jika damage besar (hasil stack x3 atau x10), ganti warna merah & guncang kuat
+		if damage_amount >= 30: 
+			dmg_color = Color(1, 0, 0) 
+			shake_screen(0.3, 12.0) 
+		elif damage_amount >= 15:
+			dmg_color = Color(1, 0, 0)
+			shake_screen(0.2, 8.0)
 			
 		spawn_floating_text(player_anim, str(damage_amount), dmg_color)
-		question_label.text = "🛡️ %s MENYERANG!\nKamu terkena %s Damage." % [enemy_data.get("name", "Musuh"), str(damage_amount)]
+		question_label.text = "🛡️ %s MENYERANG!\nKamu terkena %d Damage." % [enemy_data.get("name", "Musuh"), damage_amount]
 		await play_player_hit_effect()
 	else:
 		question_label.text = "✨ SERANGAN DITANGKIS!\nKamu tidak terkena damage."
 	
 	update_ui()
 	
-	# Cek Mati/Hidup
 	if player_hp <= 0:
 		game_over("💀 HP HABIS!\nKamu butuh belajar lagi...")
 	else:
@@ -701,9 +700,10 @@ func perform_ultimate():
 		win_battle()
 
 func check_answer(btn_index):
-	# [FIX] Tambahkan pengecekan is_performing_action agar tidak double input
+	# [FIX] Pengecekan agar tidak double input saat animasi berjalan
 	if is_waiting_next_turn or not battle_active or is_performing_action: return
 	
+	# Logika jika sedang dalam menu kabur (Flee)
 	if is_confirming_flee:
 		if btn_index == 0: perform_flee()
 		elif btn_index == 1: cancel_flee()
@@ -711,10 +711,35 @@ func check_answer(btn_index):
 
 	set_buttons_enabled(false)
 	is_waiting_next_turn = true
-	is_performing_action = true # Kunci status agar turn tidak kacau
+	is_performing_action = true # Kunci status
 	
 	if btn_index == current_correct_index:
 		increase_mana(25) 
+		
+		# --- [FIX] LOGIKA MURNIKAN ARWAH RANDOM (Timer > 6s) ---
+		# Hanya berjalan jika musuh adalah Soul Harbinger
+		var enemy_name = enemy_data.get("name", "")
+		if current_time > 6.0 and enemy_name == "Soul Harbinger" and active_summons.size() > 0:
+			# 1. Pilih arwah secara acak dari list
+			var random_idx = randi() % active_summons.size()
+			var soul_to_kill = active_summons[random_idx]
+			
+			# 2. Hapus dari array agar tidak dihitung saat Shadow Barrage
+			active_summons.remove_at(random_idx)
+			
+			# 3. Mainkan animasi mati arwah tersebut
+			if soul_to_kill.has_method("play") and soul_to_kill.sprite_frames.has_animation("summon_die"):
+				soul_to_kill.play("summon_die")
+				get_tree().create_timer(0.6).timeout.connect(soul_to_kill.queue_free)
+			else:
+				soul_to_kill.queue_free()
+			
+			# [FIX] Koordinat Harbinger: Y diturunkan (150.0), X digeser ke kiri (-250.0)
+			spawn_floating_text(enemy_anim, "SOUL PURIFIED!", Color.CYAN, -50.0, -55.0, true)
+			question_label.text = "✨ JAWABAN KILAT! Kekuatan arwah berkurang!"
+			await get_tree().create_timer(0.8).timeout
+		
+		# --- LANJUT KE SERANGAN PLAYER ---
 		await move_player_to_enemy()
 		
 		var damage_min = Global.player_damage_min
@@ -727,41 +752,25 @@ func check_answer(btn_index):
 		if "player_powerup_chance" in Global: p_chance = Global.player_powerup_chance
 		
 		if current_time > 6.0 and randf() < p_chance:
-			# 1. Jalankan urutan QTE
 			await run_powerup_qte_sequence()
-			
-			# [FIX] Tentukan offset Y secara dinamis hanya untuk Boss
-			var powerup_offset_y = 0.0
-			if enemy_data.get("is_boss", false):
-				# Jika musuh berbadan besar (Nightborn), tarik teks ke atas lebih jauh (-160)
-				powerup_offset_y = -40.0 
-			else:
-				# Jika musuh kecil (Bee/Slime), gunakan offset standar (0)
-				powerup_offset_y = 0.0
+			var powerup_offset_y = -40.0 if enemy_data.get("is_boss", false) else 0.0
 
-			# 2. Tentukan aksi berdasarkan jumlah hits sukses
 			if powerup_hits == 2:
 				question_label.text = "🔥 FULL POWER COMBO!! 🔥"
-				# Gunakan powerup_offset_y yang sudah kita hitung di atas
 				spawn_floating_text(player_anim, "POWER UP!!", Color.RED, powerup_offset_y)
 				await execute_combo_attack(raw_damage, is_critical, ["attack_2", "attack_1", "attack_3"])
-				
 			elif powerup_hits == 1:
 				question_label.text = "⚡ POWER UP ATTACK! ⚡"
-				# Gunakan powerup_offset_y yang sama
 				spawn_floating_text(player_anim, "POWER UP!", Color.YELLOW, powerup_offset_y)
 				await execute_combo_attack(raw_damage, is_critical, ["attack_2", "attack_1"])
-				
 			else:
 				question_label.text = "⚔️ POWER UP MISSED!\nSerangan Normal..."
 				await execute_combo_attack(raw_damage, is_critical, ["attack_2"])
-		
 		else:
-			# --- LOGIKA SERANGAN NORMAL (Berdasarkan Waktu) ---
+			# --- LOGIKA SERANGAN NORMAL ---
 			var multiplier = 1.0
 			var anim_to_play = "attack_1"
 			var info_text = ""
-			
 			if current_time > 6.0: 
 				multiplier = 1.5
 				anim_to_play = "attack_2"
@@ -783,18 +792,11 @@ func check_answer(btn_index):
 		update_ui()
 		await get_tree().create_timer(1.0).timeout
 	
-	# [FIX] Reset status perform aksi setelah semua animasi selesai
 	is_performing_action = false 
-	
-	is_performing_action = false 
-	
-	# [FIX] Cek kematian HANYA SETELAH player selesai menyerang
 	if enemy_hp <= 0:
-		# Jika ini Soul Harbinger Phase 1, jalankan urutan Revive
 		if enemy_data.get("has_phase_two") and not enemy_data["is_phase_2"]:
 			handle_harbinger_death_sequence()
 		else:
-			# Jika musuh biasa atau Phase 2 sudah kalah, baru menang
 			win_battle()
 		return
 	
@@ -921,14 +923,14 @@ func handle_harbinger_death_sequence():
 		enemy_anim.stop() 
 		
 	# 2. Animasi Bangkit
-	question_label.text = "SOUL HARBINGER BANGKIT KEMBALI!"
+	question_label.text = "SOUL HARBINGER BANGKIT KEMBALI! \n PHASE 2"
 	if enemy_anim.sprite_frames.has_animation("ressurrection"):
 		enemy_anim.play("ressurrection")
 		await enemy_anim.animation_finished
 	
 	# --- UPDATE STATUS PHASE 2 ---
 	enemy_data["is_phase_2"] = true
-	enemy_hp = 150
+	enemy_hp = enemy_data.get("phase_two_hp")
 	
 	
 	# [FIX] Pisahkan dari Nightborn: Update max stack ke 5
@@ -952,17 +954,25 @@ func handle_harbinger_death_sequence():
 
 # Ganti fungsi pembantu ini jika kamu menggunakannya dalam check_answer
 func apply_hit_logic(dmg, is_crit):
+	var enemy_name = enemy_data.get("name", "")
+	
 	if is_crit: 
 		dmg = int(dmg * 1.5)
 		
-		# --- LOGIKA BREAK CHARGE (Hanya kurangi 1 stack) ---
+		# --- [FIX] LOGIKA BREAK CHARGE (DIPISAH BERDASARKAN MUSUH) ---
 		if enemy_charge_level > 0:
-			enemy_charge_level -= 1 # [FIX] Hanya kurangi 1, bukan reset ke 0
-			
-			spawn_floating_text(enemy_anim, "STACK DOWN!", Color.CYAN, 0.0, -60.0, 200, true)
-			
-			# Info di Battle Log yang lebih baik
-			question_label.text = "💥 CRITICAL HIT! Stack %s berkurang! (Sisa: %d)" % [enemy_data.get("name", "Musuh"), enemy_charge_level]
+			if enemy_name == "Soul Harbinger":
+				# --- KHUSUS SOUL HARBINGER: Hanya Kurangi 1 Stack ---
+				enemy_charge_level -= 1
+				# [FIX] Koordinat: Y turun (150.0), X kiri (-250.0)
+				spawn_floating_text(enemy_anim, "STACK DOWN!", Color.CYAN, 150.0, -250.0, 200, true)
+				question_label.text = "💥 CRITICAL HIT! Stack Harbinger berkurang! (Sisa: %d)" % enemy_charge_level
+			else:
+				# --- KHUSUS NIGHTBORN / LAINNYA: Reset ke 0 (WEAKENED) ---
+				enemy_charge_level = 0
+				# Koordinat standar: Y naik (-80.0), X tengah (0.0)
+				spawn_floating_text(enemy_anim, "WEAKENED!", Color.CYAN, 15.0, -40.0, 200, true)
+				question_label.text = "💥 CRITICAL HIT! STACK %s HANCUR!! (Stack Reset)" % enemy_name
 			
 			# Efek visual kilatan biru
 			var break_tween = get_tree().create_tween()
@@ -970,8 +980,6 @@ func apply_hit_logic(dmg, is_crit):
 			break_tween.tween_property(enemy_anim, "modulate", Color(1, 1, 1, 1), 0.3)
 			
 	enemy_hp = max(0, enemy_hp - dmg)
-	
-	# Munculkan Angka Damage
 	spawn_floating_text(enemy_anim, str(dmg) + ("!!" if is_crit else ""), Color.RED if is_crit else Color.WHITE)
 	play_enemy_hit_effect()
 	update_ui()
