@@ -79,7 +79,7 @@ var enemy_database = {
 	"name": "Soul Harbinger",
 	"hp": 10, # Darah Phase 1
 	"damage_min": 10,
-	"damage_max": 25,
+	"damage_max": 12,
 	"frames": preload("res://Enemies/SoulHarbinger/SoulHarbinger.tres"),
 	"scale": Vector2(4, 4), 
 	"animation_name": "idle",
@@ -99,7 +99,7 @@ var enemy_database = {
 	# --- LOGIKA REVIVE PHASE 2 ---
 	"has_phase_two": true,
 	"is_phase_2": false,
-	"phase_two_hp": 300, 
+	"phase_two_hp": 450, 
 	"phase_two_bonus_atk": 3 
 	}
 }

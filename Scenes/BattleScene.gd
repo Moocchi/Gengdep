@@ -184,18 +184,31 @@ func enemy_turn():
 	# --- 1. LOGIKA KHUSUS SOUL HARBINGER ---
 	if enemy_name == "Soul Harbinger":
 		if enemy_data.get("is_phase_2", false):
+			# Harbinger Phase 2: Fokus pada Summon atau Barrage
 			if active_summons.size() < max_summons:
-				if randf() < 0.4:
+				if randf() < 1.0:
 					await perform_harbinger_summon()
 					start_new_turn()
 					return
 			else:
+				# Serangan Soul Barrage (Hujan Arwah)
 				await perform_soul_barrage_attack()
 				start_new_turn()
 				return
 		
-		var final_damage = randi_range(enemy_data["damage_min"], enemy_data["damage_max"])
+		# --- [FIX] LOGIKA SERANGAN MELEE HARBINGER + PARRY ---
 		await enemy_move_to_player()
+		
+		# Cek Parry sebelum Harbinger menebas sabitnya
+		var roll = randf()
+		if roll < Global.player_parry_chance:
+			Engine.time_scale = 0.1 
+			var spawn_pos = Vector2(randf_range(300.0, 450.0), 100.0)
+			parry_qte_system.start_qte(spawn_pos, 0.6)
+			return # Hentikan eksekusi di sini agar QTE berjalan
+		
+		# Jika parry gagal atau tidak 100%, lanjut ke serangan normal
+		var final_damage = randi_range(enemy_data["damage_min"], enemy_data["damage_max"])
 		await execute_harbinger_attack_sequence(final_damage)
 		await enemy_return_to_pos()
 		start_new_turn()
@@ -203,8 +216,8 @@ func enemy_turn():
 
 	# --- 2. LOGIKA KHUSUS NIGHTBORN / BOSS LAIN (Sistem Charge) ---
 	var is_boss = enemy_data.get("is_boss", false)
-	if is_boss and enemy_charge_level < max_enemy_charge:
-		if randf() < 0.5: 
+	if is_boss and enemy_name != "Soul Harbinger" and enemy_charge_level < max_enemy_charge:
+		if randf() < 0.4: 
 			enemy_charge_level += 1 
 			await perform_boss_charge_visual() 
 			
@@ -217,7 +230,7 @@ func enemy_turn():
 			start_new_turn()
 			return
 
-	# --- 3. PERHITUNGAN DAMAGE MULTIPLIER ---
+	# --- 3. PERHITUNGAN DAMAGE MULTIPLIER (Nightborn/Lainnya) ---
 	var damage_multiplier = 1.0
 	if enemy_charge_level == 1: damage_multiplier = 1.5
 	elif enemy_charge_level == 2: damage_multiplier = 3.0
@@ -225,6 +238,7 @@ func enemy_turn():
 	
 	await enemy_move_to_player()
 	
+	# Pengecekan Parry untuk musuh selain Harbinger
 	var roll = randf()
 	if roll < Global.player_parry_chance:
 		Engine.time_scale = 0.1 
@@ -392,24 +406,43 @@ func perform_harbinger_summon():
 	if enemy_anim.sprite_frames.has_animation("summon"):
 		enemy_anim.play("summon")
 	
-	# [FIX] Memanggil arwah dari Scene baru
+	# --- [FIX] CARI SLOT YANG KOSONG ---
+	var occupied_slots = []
+	for s in active_summons:
+		if s.has_meta("slot_index"):
+			occupied_slots.append(s.get_meta("slot_index"))
+	
+	var target_slot = -1
+	for i in range(max_summons):
+		if not i in occupied_slots:
+			target_slot = i
+			break
+	
+	# Jika tidak ada slot kosong, batalkan summon
+	if target_slot == -1: 
+		if enemy_anim.sprite_frames.has_animation(enemy_idle_anim_name):
+			enemy_anim.play(enemy_idle_anim_name)
+		return 
+	
+	# Instantiate arwah dari scene
 	var soul = summon_scene.instantiate()
-	# Masukkan ke parent boss (BattleArea) agar koordinat global sinkron
 	enemy_anim.get_parent().add_child(soul)
 	active_summons.append(soul)
 	
-	# Set posisi awal tepat di tengah Boss
+	# [FIX] Tandai arwah ini menempati slot nomor berapa
+	soul.set_meta("slot_index", target_slot)
+	
 	soul.global_position = enemy_anim.global_position
 	soul.play("summon_spawn")
 	
-	# --- PENGATURAN TINGGI (Y) ---
-	var index = active_summons.size() - 1
-	var angle = deg_to_rad(210 + (index * 30)) # Area melayang di atas
+	# --- PENGATURAN POSISI BERDASARKAN SLOT (Bukan Size) ---
+	# Menggunakan target_slot menjamin arwah mengisi celah yang kosong
+	var angle = deg_to_rad(210 + (target_slot * 30)) 
 	var radius = 170.0 
 	var offset_pos = Vector2(cos(angle), sin(angle)) * radius
 	
-	# [FIX] Atur ketinggian di sini agar tidak menutupi badan pemain
-	offset_pos.y -= -30
+	# Sesuaikan ketinggian agar pas di atas jubah
+	offset_pos.y -= -30.0 
 	
 	var target_pos = enemy_anim.global_position + offset_pos
 	
@@ -418,35 +451,94 @@ func perform_harbinger_summon():
 	
 	await t.finished
 	soul.play("summon_idle")
+	
+	# Balik ke animasi idle Boss
+	if enemy_anim.sprite_frames.has_animation(enemy_idle_anim_name):
+		enemy_anim.play(enemy_idle_anim_name)
 
 # Serangan Barrage diikuti combo melee
 func perform_soul_barrage_attack():
-	question_label.text = "💠 SOUL BARRAGE!! 💠"
-	Engine.time_scale = 0.5 # Efek dramatis
+	question_label.text = "💠 SHADOW BARRAGE!! 💠"
+	# [FIX] Variabel untuk menampung total damage keseluruhan
+	var total_barrage_damage = 0
 	
-	# Lempar arwah satu per satu
-	for soul in active_summons:
+	var barrage_souls = active_summons.duplicate()
+	active_summons.clear() 
+	
+	var current_delay = 0.35 
+	
+	# 1. SERANGAN ARWAH (Accumulating Damage)
+	for i in range(barrage_souls.size()):
+		var soul = barrage_souls[i]
 		var t = create_tween()
-		t.tween_property(soul, "global_position", player_anim.global_position, 0.3).set_trans(Tween.TRANS_QUART)
+		
+		t.tween_property(soul, "global_position", player_anim.global_position, 0.2).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
 		await t.finished
-		spawn_floating_text(player_anim, "5", Color.PURPLE, 0, 0, 100, true)
-		soul.play("summon_die")
-		await get_tree().create_timer(0.1).timeout
-		soul.queue_free()
+		
+		# Kalkulasi damage arwah
+		var soul_dmg = randi_range(5, 10) 
+		player_hp -= soul_dmg
+		total_barrage_damage += soul_dmg # Tambahkan ke log
+		
+		if player_hp < 0: player_hp = 0
+		Global.player_current_hp = player_hp
+		update_ui()
+		
+		spawn_floating_text(player_anim, str(soul_dmg), Color.PURPLE, 0, randf_range(-20, 20), 100, true)
+		shake_screen(0.1, 5.0)
+		play_player_hit_effect()
+		
+		# Efek visual kilatan ungu intens
+		var p_tween = create_tween()
+		player_anim.modulate = Color(3, 0, 3) 
+		p_tween.tween_property(player_anim, "modulate", Color(1, 1, 1), 0.1)
+		
+		if soul.sprite_frames.has_animation("summon_die"):
+			soul.play("summon_die")
+			get_tree().create_timer(0.4).timeout.connect(soul.queue_free)
+		else:
+			soul.queue_free()
+			
+		await get_tree().create_timer(current_delay).timeout
+		current_delay = max(0.05, current_delay - 0.07)
 	
-	active_summons.clear()
-	Engine.time_scale = 1.0
-	
-	# Lanjutkan dengan combo attack_1 dan attack_2
-	await enemy_move_to_player()
-	enemy_anim.play("attack_1")
-	await enemy_anim.animation_finished
-	enemy_anim.play("attack_2")
-	await enemy_anim.animation_finished
-	
-	var final_dmg = randi_range(enemy_data["damage_min"], enemy_data["damage_max"])
-	finish_enemy_attack(final_dmg)
-	await enemy_return_to_pos()
+	# 2. SERANGAN PENUTUP MELEE (Sync Frame 2 & 9)
+	if player_hp > 0:
+		await enemy_move_to_player()
+		
+		if enemy_anim.sprite_frames.has_animation("attack_1"):
+			enemy_anim.play("attack_1")
+			
+			var melee_total_dmg = randi_range(enemy_data["damage_min"], enemy_data["damage_max"])
+			var hit_dmg = int(melee_total_dmg / 2)
+			
+			# HIT 1: Frame 2
+			await wait_for_frame_safe(enemy_anim, 2)
+			finish_enemy_attack_for_harbinger(hit_dmg)
+			total_barrage_damage += hit_dmg # Tambahkan ke log
+			shake_screen(0.1, 6.0)
+			
+			# HIT 2: Frame 9
+			await wait_for_frame_safe(enemy_anim, 9)
+			finish_enemy_attack_for_harbinger(hit_dmg)
+			total_barrage_damage += hit_dmg # Tambahkan ke log
+			shake_screen(0.2, 10.0)
+			
+			await enemy_anim.animation_finished
+		
+		# [FIX] Tampilkan total akumulasi damage di log pertarungan
+		question_label.text = "DAMAGE DEALT FROM SOUL BARRAGE: %d\n" % total_barrage_damage
+		
+		await enemy_return_to_pos()
+		
+		if player_hp <= 0:
+			game_over("💀 DIE CAUSE OF SOUL BARRAGE")
+		else:
+			await get_tree().create_timer(1.5).timeout # Jeda agar log terbaca
+			start_new_turn()
+	else:
+		game_over("💀 DIE CAUSE OF SOUL BARRAGE")
+
 # =========================================
 # --- END OF NEW LOGIC ---
 # =========================================
