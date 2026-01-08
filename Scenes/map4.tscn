@@ -4355,7 +4355,7 @@ destination_door_tag = "map3_3"
 position = Vector2(-41, -1.792167e-06)
 
 [node name="EnemySoulHarbinger" parent="." instance=ExtResource("14_evehx")]
-position = Vector2(807, 149)
+position = Vector2(473, 331)
 enemy_id = "soul_harbinger_1_1"
 
 [node name="EnemyNightborn" parent="." instance=ExtResource("14_b4tl7")]

@@ -184,61 +184,57 @@ func enemy_turn():
 	# --- 1. LOGIKA KHUSUS SOUL HARBINGER ---
 	if enemy_name == "Soul Harbinger":
 		if enemy_data.get("is_phase_2", false):
-			# Harbinger Phase 2: Fokus pada Summon atau Barrage
 			if active_summons.size() < max_summons:
-				if randf() < 1.0:
-					await perform_harbinger_summon()
+				if randf() < 0.7:
+					await perform_harbinger_summon() # Log summon ada di dalam fungsi ini
 					start_new_turn()
 					return
 			else:
-				# Serangan Soul Barrage (Hujan Arwah)
 				await perform_soul_barrage_attack()
 				start_new_turn()
 				return
 		
-		# --- [FIX] LOGIKA SERANGAN MELEE HARBINGER + PARRY ---
 		await enemy_move_to_player()
-		
-		# Cek Parry sebelum Harbinger menebas sabitnya
 		var roll = randf()
 		if roll < Global.player_parry_chance:
 			Engine.time_scale = 0.1 
 			var spawn_pos = Vector2(randf_range(300.0, 450.0), 100.0)
 			parry_qte_system.start_qte(spawn_pos, 0.6)
-			return # Hentikan eksekusi di sini agar QTE berjalan
+			return 
 		
-		# Jika parry gagal atau tidak 100%, lanjut ke serangan normal
 		var final_damage = randi_range(enemy_data["damage_min"], enemy_data["damage_max"])
 		await execute_harbinger_attack_sequence(final_damage)
 		await enemy_return_to_pos()
 		start_new_turn()
 		return
 
-	# --- 2. LOGIKA KHUSUS NIGHTBORN / BOSS LAIN (Sistem Charge) ---
+	# --- 2. LOGIKA KHUSUS NIGHTBORN (Sistem Charge & Log Multiplier) ---
 	var is_boss = enemy_data.get("is_boss", false)
 	if is_boss and enemy_name != "Soul Harbinger" and enemy_charge_level < max_enemy_charge:
-		if randf() < 0.4: 
+		if randf() < 0.45: 
 			enemy_charge_level += 1 
 			await perform_boss_charge_visual() 
 			
-			if enemy_charge_level == max_enemy_charge:
-				question_label.text = "🛑 WARNING !! FULL STACK REACHED\nDAMAGE MULTIPLY BY 3.5"
-			else:
-				question_label.text = "⚠️ %s MENGUMPULKAN STACK! (%d/%d)" % [enemy_name, enemy_charge_level, max_enemy_charge]
+			# UPDATE BATTLE LOG NIGHTBORN
+			var log_text = ""
+			match enemy_charge_level:
+				1: log_text = "⚠️ %s mengumpulkan energi... (1/3)\n[Damage x1.5]" % enemy_name
+				2: log_text = "☢️ WARNING!! Aura %s semakin pekat! (2/3)\n[Damage x2.0]" % enemy_name
+				3: log_text = "🛑 CAUTION!! FULL STACK REACHED (3/3)\n[DAMAGE x3.5!!]" % enemy_name
 			
+			question_label.text = log_text
 			await get_tree().create_timer(1.2).timeout
 			start_new_turn()
 			return
 
-	# --- 3. PERHITUNGAN DAMAGE MULTIPLIER (Nightborn/Lainnya) ---
+	# --- 3. PERHITUNGAN DAMAGE MULTIPLIER (Update Stack 2 ke 2.2) ---
 	var damage_multiplier = 1.0
 	if enemy_charge_level == 1: damage_multiplier = 1.5
-	elif enemy_charge_level == 2: damage_multiplier = 3.0
+	elif enemy_charge_level == 2: damage_multiplier = 2.0 # <--- Diubah dari 3.0
 	elif enemy_charge_level == 3: damage_multiplier = 3.5
 	
 	await enemy_move_to_player()
 	
-	# Pengecekan Parry untuk musuh selain Harbinger
 	var roll = randf()
 	if roll < Global.player_parry_chance:
 		Engine.time_scale = 0.1 
@@ -312,7 +308,7 @@ func _on_parry_completed(is_success: bool):
 		# Hitung pengali berdasarkan stack saat ini agar damage x10 tetap terasa
 		var multiplier = 1.0
 		if enemy_charge_level == 1: multiplier = 1.5
-		elif enemy_charge_level == 2: multiplier = 3.0
+		elif enemy_charge_level == 2: multiplier = 2.0
 		elif enemy_charge_level == 3: multiplier = 3.5
 		
 		# Ambil damage asli musuh dari database
@@ -418,41 +414,35 @@ func perform_harbinger_summon():
 			target_slot = i
 			break
 	
-	# Jika tidak ada slot kosong, batalkan summon
 	if target_slot == -1: 
+		question_label.text = "🌑 Soul Harbinger mencoba memanggil arwah...\ntapi slot sudah penuh!"
 		if enemy_anim.sprite_frames.has_animation(enemy_idle_anim_name):
 			enemy_anim.play(enemy_idle_anim_name)
 		return 
 	
-	# Instantiate arwah dari scene
 	var soul = summon_scene.instantiate()
 	enemy_anim.get_parent().add_child(soul)
 	active_summons.append(soul)
 	
-	# [FIX] Tandai arwah ini menempati slot nomor berapa
-	soul.set_meta("slot_index", target_slot)
+	# --- [BATTLE LOG POLISH] ---
+	question_label.text = "🌑 Soul Harbinger memanggil arwah kegelapan!\n(Arwah Aktif: %d / 5)" % active_summons.size()
 	
+	soul.set_meta("slot_index", target_slot)
 	soul.global_position = enemy_anim.global_position
 	soul.play("summon_spawn")
 	
-	# --- PENGATURAN POSISI BERDASARKAN SLOT (Bukan Size) ---
-	# Menggunakan target_slot menjamin arwah mengisi celah yang kosong
+	# ... (Sisa kode tween arwah tetap sama) ...
 	var angle = deg_to_rad(210 + (target_slot * 30)) 
 	var radius = 170.0 
 	var offset_pos = Vector2(cos(angle), sin(angle)) * radius
-	
-	# Sesuaikan ketinggian agar pas di atas jubah
 	offset_pos.y -= -30.0 
-	
 	var target_pos = enemy_anim.global_position + offset_pos
-	
 	var t = create_tween()
 	t.tween_property(soul, "global_position", target_pos, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	
 	await t.finished
 	soul.play("summon_idle")
 	
-	# Balik ke animasi idle Boss
 	if enemy_anim.sprite_frames.has_animation(enemy_idle_anim_name):
 		enemy_anim.play(enemy_idle_anim_name)
 
@@ -527,7 +517,7 @@ func perform_soul_barrage_attack():
 			await enemy_anim.animation_finished
 		
 		# [FIX] Tampilkan total akumulasi damage di log pertarungan
-		question_label.text = "DAMAGE DEALT FROM SOUL BARRAGE: %d\n" % total_barrage_damage
+		question_label.text = "DAMAGE DEALT FROM SOUL BARRAGE: %d" % total_barrage_damage
 		
 		await enemy_return_to_pos()
 		

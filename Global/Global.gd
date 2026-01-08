@@ -61,46 +61,46 @@ var enemy_database = {
 		"is_boss":false
 	},
 	"nightborn": {
-	"name": "Nightborn",
-	"hp": 150,
-	"damage_min": 10,
-	"damage_max": 15,
-	"frames": preload("res://Enemies/Nightborn/Nightborn.tres"),
-	"scale": Vector2(5, 5),
-	"animation_name": "idle",
-	"should_flip": true,
-	"player_attack_offset": 110.0, #makin gede makin jauh dari musuh
-	"attack_offset": 100.0, #makin gede makin jauh dari player
-	"y_offset": -55.0, # <--- TAMBAHKAN INI (Sesuaikan angkanya sampai pas)
-	"question_file": "res://Enemies/Nightborn/Nightborn.json",
-	"is_boss": true
+		"name": "Nightborn",
+		"hp": 150,
+		"damage_min": 10,
+		"damage_max": 15,
+		"frames": preload("res://Enemies/Nightborn/Nightborn.tres"),
+		"scale": Vector2(5, 5),
+		"animation_name": "idle",
+		"should_flip": true,
+		"player_attack_offset": 110.0, #makin gede makin jauh dari musuh
+		"attack_offset": 100.0, #makin gede makin jauh dari player
+		"y_offset": -55.0, # <--- TAMBAHKAN INI (Sesuaikan angkanya sampai pas)
+		"question_file": "res://Enemies/Nightborn/Nightborn.json",
+		"is_boss": true
 	},
 	"soul_harbinger": {
-	"name": "Soul Harbinger",
-	"hp": 10, # Darah Phase 1
-	"damage_min": 10,
-	"damage_max": 12,
-	"frames": preload("res://Enemies/SoulHarbinger/SoulHarbinger.tres"),
-	"scale": Vector2(4, 4), 
-	"animation_name": "idle",
-	"should_flip": true,
-	"is_boss": true,
-	"y_offset": -30.0,
-	"player_attack_offset": 120.0,
-	"attack_offset": 100.0,
-	"max_charge": 5,
-	"summon_scale": Vector2(0.2, 0.2),
-	"max_summons": 5,
-	
-	# --- SISTEM SOAL DINAMIS ---
-	"question_file": "res://Enemies/SoulHarbinger/SoulHarbinger.json", # Soal Phase 1 (Normal)
-	"phase_two_question_file": "res://Enemies/SoulHarbinger/PhaseTwo.json", # <--- TAMBAHKAN INI (Soal Lebih Sulit)
-	
-	# --- LOGIKA REVIVE PHASE 2 ---
-	"has_phase_two": true,
-	"is_phase_2": false,
-	"phase_two_hp": 450, 
-	"phase_two_bonus_atk": 3 
+		"name": "Soul Harbinger",
+		"hp": 10, # Darah Phase 1
+		"damage_min": 10,
+		"damage_max": 12,
+		"frames": preload("res://Enemies/SoulHarbinger/SoulHarbinger.tres"),
+		"scale": Vector2(4, 4), 
+		"animation_name": "idle",
+		"should_flip": true,
+		"is_boss": true,
+		"y_offset": -30.0,
+		"player_attack_offset": 120.0,
+		"attack_offset": 100.0,
+		"max_charge": 5,
+		"summon_scale": Vector2(0.2, 0.2),
+		"max_summons": 5,
+		
+		# --- SISTEM SOAL DINAMIS ---
+		"question_file": "res://Enemies/SoulHarbinger/SoulHarbinger.json", # Soal Phase 1 (Normal)
+		"phase_two_question_file": "res://Enemies/SoulHarbinger/PhaseTwo.json", # <--- TAMBAHKAN INI (Soal Lebih Sulit)
+		
+		# --- LOGIKA REVIVE PHASE 2 ---
+		"has_phase_two": true,
+		"is_phase_2": false,
+		"phase_two_hp": 450, 
+		"phase_two_bonus_atk": 3 
 	}
 }
 

@@ -309,12 +309,25 @@ text = "NOW LOADING..."
 scroll_active = false
 custom_effects = [SubResource("RichTextEffect_dq85b")]
 
-[node name="Label" type="Label" parent="."]
+[node name="Title" type="Label" parent="."]
 layout_mode = 0
-offset_left = 135.0
-offset_top = 177.0
-offset_right = 463.0
-offset_bottom = 200.0
+offset_left = 192.0
+offset_top = 160.0
+offset_right = 240.0
+offset_bottom = 191.0
+theme_override_fonts/font = ExtResource("2_qjj4j")
+theme_override_font_sizes/font_size = 30
+text = "TIPS"
+autowrap_mode = 2
+
+[node name="TipsLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 192.0
+offset_top = 200.0
+offset_right = 1152.0
+offset_bottom = 560.0
 theme_override_fonts/font = ExtResource("2_qjj4j")
 theme_override_font_sizes/font_size = 23
 text = "for() selalu dimulai dari 0 index ya gusy"
+autowrap_mode = 2
